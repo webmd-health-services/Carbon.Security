@@ -4,6 +4,11 @@ Build:
     ExceptDuring: Clean
     ScriptBlock: prism install | Format-Table -Auto
 
+- PowerShell:
+    ExceptDuring: Clean
+    WorkingDirectory: Carbon.Permissions
+    ScriptBlock: prism install | Format-Table -Auto
+
 - Version:
     Path: Carbon.Permissions\Carbon.Permissions.psd1
     Prerelease:

@@ -25,7 +25,7 @@ function ConvertTo-CInheritanceFlag
     [CmdletBinding()]
     param(
         [Parameter(Mandatory=$true)]
-        [Carbon.Security.ContainerInheritanceFlags]
+        [Carbon_Permissions_ContainerInheritanceFlags]
         # The value to convert to an `InheritanceFlags` value.
 		[Alias('ContainerInheritanceFlags')]
         $ContainerInheritanceFlag
@@ -59,6 +59,3 @@ function ConvertTo-CInheritanceFlag
 
     Write-Error ('Unknown Carbon.Security.ContainerInheritanceFlags enumeration value {0}.' -f $ContainerInheritanceFlag)
 }
-
-Set-Alias -Name 'ConvertTo-InheritanceFlags' -Value 'ConvertTo-CInheritanceFlag'
-

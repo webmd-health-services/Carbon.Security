@@ -1,66 +1,74 @@
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-# 
-#     http://www.apache.org/licenses/LICENSE-2.0
-# 
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
-$UserName = 'CarbonDscTestUser'
-$Password = [Guid]::NewGuid().ToString()
+using module '..\Carbon.Permissions'
 
-function Start-TestFixture
-{
-    & (Join-Path -Path $TestDir -ChildPath '..\Initialize-CarbonTest.ps1' -Resolve)
-    Install-User -Username $UserName -Password $Password
+#Requires -Version 5.1
+Set-StrictMode -Version 'Latest'
+
+BeforeAll {
+    & (Join-Path -Path $PSScriptRoot -ChildPath 'Initialize-Test.ps1' -Resolve)
+
+    $script:username = 'CarbonTestUser'
 }
 
-function Test-ShouldConvertToNtfsContainerInheritanceFlags
-{
-    $tempDir = 'Carbon+{0}+{1}' -f ((Split-Path -Leaf -Path $PSCommandPath),([IO.Path]::GetRandomFileName()))
-    $tempDir = Join-Path -Path $env:TEMP -ChildPath $tempDir
-    New-Item -Path $tempDir -ItemType 'Directory' | Out-Null
 
-    try
-    {
-        [Enum]::GetValues([Carbon.Security.ContainerInheritanceFlags]) | ForEach-Object {
-            Grant-Permission -Path $tempDir -Identity $UserName -Permission FullControl -ApplyTo $_
-            $perm = Get-Permission -Path $tempDir -Identity $UserName
-            $flags = ConvertTo-ContainerInheritanceFlags -InheritanceFlags $perm.InheritanceFlags -PropagationFlags $perm.PropagationFlags
-            Assert-Equal $_ $flags
-        }
-    }
-    finally
-    {
-        if( Test-Path $tempDir )
+Describe 'ConvertTo-CContainerInheritanceFlag' {
+    It 'should convert to ntfs container inheritance flags' {
+        $tempDir = 'Carbon+{0}+{1}' -f ((Split-Path -Leaf -Path $PSCommandPath),([IO.Path]::GetRandomFileName()))
+        $tempDir = Join-Path -Path $env:TEMP -ChildPath $tempDir
+        New-Item -Path $tempDir -ItemType 'Directory' | Out-Null
+
+        try
         {
-            Remove-Item $tempDir -Recurse -Force
+            foreach ($flag in [Enum]::GetValues([Carbon_Permissions_ContainerInheritanceFlags]))
+            {
+                Grant-CPermission -Path $tempDir -Identity $script:username -Permission FullControl -ApplyTo $flag
+                $perm = Get-CPermission -Path $tempDir -Identity $script:username
+                InModuleScope 'Carbon.Permissions' {
+                    param(
+                        $perm
+                    )
+
+                    ConvertTo-CContainerInheritanceFlag -InheritanceFlags $perm.InheritanceFlags `
+                                                        -PropagationFlags $perm.PropagationFlags
+                } -Parameters @{ perm = $perm ; } |
+                    Should -Be $flag
+            }
+        }
+        finally
+        {
+            if( Test-Path $tempDir )
+            {
+                Remove-Item $tempDir -Recurse -Force
+            }
         }
     }
-}
 
-function Test-ShouldConvertToRegistryContainerInheritanceFlags
-{
-    $tempDir = 'Carbon+{0}+{1}' -f ((Split-Path -Leaf -Path $PSCommandPath),([IO.Path]::GetRandomFileName()))
-    $tempDir = Join-Path -Path 'hkcu:\' -ChildPath $tempDir
-    New-Item -Path $tempDir 
+    It 'should convert to registry container inheritance flags' {
+        $tempDir = 'Carbon+{0}+{1}' -f ((Split-Path -Leaf -Path $PSCommandPath),([IO.Path]::GetRandomFileName()))
+        $tempDir = Join-Path -Path 'hkcu:\' -ChildPath $tempDir
+        New-Item -Path $tempDir
 
-    try
-    {
-        [Enum]::GetValues([Carbon.Security.ContainerInheritanceFlags]) | ForEach-Object {
-            Grant-Permission -Path $tempDir -Identity $UserName -Permission ReadKey -ApplyTo $_
-            $perm = Get-Permission -Path $tempDir -Identity $UserName
-            $flags = ConvertTo-ContainerInheritanceFlags -InheritanceFlags $perm.InheritanceFlags -PropagationFlags $perm.PropagationFlags
-            Assert-Equal $_ $flags
+        try
+        {
+            foreach ($flag in [Enum]::GetValues([Carbon_Permissions_ContainerInheritanceFlags]))
+            {
+                Grant-CPermission -Path $tempDir -Identity $script:username -Permission ReadKey -ApplyTo $flag
+                $perm = Get-CPermission -Path $tempDir -Identity $script:username
+                InModuleScope 'Carbon.Permissions' {
+                    param(
+                        $perm
+                    )
+
+                    ConvertTo-CContainerInheritanceFlag -InheritanceFlags $perm.InheritanceFlags `
+                                                        -PropagationFlags $perm.PropagationFlags
+                } -Parameters @{ perm = $perm } |
+                    Should -Be $flag
+            }
+        }
+        finally
+        {
+            Remove-Item $tempDir
         }
     }
-    finally
-    {
-        Remove-Item $tempDir
-    }
-}
 
+}

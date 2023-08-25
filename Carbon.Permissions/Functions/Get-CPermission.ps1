@@ -114,7 +114,7 @@ function Get-CPermission
     $account = $null
     if( $Identity )
     {
-        $account = Test-CIdentity -Name $Identity -NoWarn -PassThru
+        $account = Test-CPrincipal -Name $Identity -PassThru
         if( $account )
         {
             $Identity = $account.FullName
@@ -167,5 +167,3 @@ function Get-CPermission
             return $true
         }
 }
-
-Set-Alias -Name 'Get-Permissions' -Value 'Get-CPermission'

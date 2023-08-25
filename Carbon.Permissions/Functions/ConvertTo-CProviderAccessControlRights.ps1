@@ -1,5 +1,5 @@
 
-function ConvertTo-ProviderAccessControlRights
+function ConvertTo-CProviderAccessControlRights
 {
     <#
     .SYNOPSIS
@@ -10,7 +10,7 @@ function ConvertTo-ProviderAccessControlRights
     This is an internal Carbon function, so you're not getting anything more than the synopsis.
 
     .EXAMPLE
-    ConvertTo-ProviderAccessControlRights -ProviderName 'FileSystem' -InputObject 'Read','Write'
+    ConvertTo-CProviderAccessControlRights -ProviderName 'FileSystem' -InputObject 'Read','Write'
 
     Demonstrates how to convert `Read` and `Write` into a `System.Security.AccessControl.FileSystemRights` value.
     #>
@@ -51,7 +51,7 @@ function ConvertTo-ProviderAccessControlRights
             GenericWrite = 'Write';
             GenericRead = 'Read';
         }
-        Write-Debug "[ConvertTo-ProviderAccessControlRights]"
+        Write-Debug "[ConvertTo-CProviderAccessControlRights]"
     }
 
     process
@@ -89,6 +89,6 @@ function ConvertTo-ProviderAccessControlRights
             Write-Debug "  ${rights}/0x$($rights.ToString('x'))"
             $rights
         }
-        Write-Debug "[ConvertTo-ProviderAccessControlRights]"
+        Write-Debug "[ConvertTo-CProviderAccessControlRights]"
     }
 }

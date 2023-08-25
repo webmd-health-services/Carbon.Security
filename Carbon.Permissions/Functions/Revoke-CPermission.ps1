@@ -84,7 +84,7 @@ function Revoke-CPermission
         return
     }
 
-    $Identity = Resolve-CIdentityName -Name $Identity
+    $Identity = Resolve-CPrincipalName -Name $Identity
 
     foreach ($item in (Get-Item $Path -Force))
     {
@@ -147,7 +147,7 @@ function Revoke-CPermission
             }
 
             $action = "revoke ${Identity}'s permissions"
-            Set-CryptoKeySecurity -Certificate $certificate -CryptoKeySecurity $keySecurity -Action $action
+            Set-CCryptoKeySecurity -Certificate $certificate -CryptoKeySecurity $keySecurity -Action $action
             return
         }
 

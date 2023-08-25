@@ -1,14 +1,3 @@
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 #Requires -Version 5.1
 Set-StrictMode -Version 'Latest'
@@ -16,25 +5,36 @@ Set-StrictMode -Version 'Latest'
 BeforeAll {
     Set-StrictMode -Version 'Latest'
 
-    & (Join-Path -Path $PSScriptRoot -ChildPath 'Initialize-CarbonTest.ps1' -Resolve)
+    & (Join-Path -Path $PSScriptRoot -ChildPath 'Initialize-Test.ps1' -Resolve)
+
+    Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath '..\PSModules\Carbon.Cryptography' -Resolve) `
+                  -Function ('Install-CCertificate', 'Uninstall-CCertificate') `
+                  -Global
 
     $script:user = 'CarbonTestUser1'
     $script:group1 = 'CarbonTestGroup1'
-    $script:password = 'a1z2b3y4!'
     $script:containerPath = $null
     $script:childPath = $null
 
+    function Get-CertificateWithPrivateKey
+    {
+        Get-Item -Path 'Cert:\*\*' |
+            Where-Object 'Name' -NotIn @('UserDS') | # This store causes problems on PowerShell 7.
+            Get-ChildItem |
+            Where-Object 'PsIsContainer' -EQ $false |
+            Where-Object 'HasPrivateKey' -EQ $true |
+            Where-Object 'PrivateKey' -NE $null |
+            # Couldn't get perms on a cert with this usage.
+            Where-Object { -not ($_.EnhancedKeyUsageList | Where-Object 'FriendlyName' -EQ 'Smart Card Logon') }
+    }
 }
 
 Describe 'Get-CPermission' {
     BeforeEach {
-        Install-CUser -Username $script:user -Password $script:password -Description 'Carbon test script:user 1'
-        Install-CGroup -Name $script:group1 -Description 'Carbon test group 1'
-
         $script:containerPath = 'Carbon-Test-GetPermissions-{0}' -f ([IO.Path]::GetRandomFileName())
         $script:containerPath = Join-Path $env:Temp $script:containerPath
 
-        Install-CDirectory $script:containerPath
+        New-Item -Path $script:containerPath -ItemType 'Directory' -Force
         Grant-CPermission -Path $script:containerPath -Identity $script:group1 -Permission Read
 
         $script:childPath = Join-Path $script:containerPath 'Child1'
@@ -91,13 +91,7 @@ Describe 'Get-CPermission' {
     }
 
     It 'should get private cert permission' {
-        $certs =
-            Get-Item -Path 'Cert:\*\*' |
-            Where-Object 'Name' -NE 'UserDS' | # This store causes problems on PowerShell 7.
-            Get-ChildItem |
-            Where-Object { -not $_.PsIsContainer } |
-            Where-Object { $_.HasPrivateKey }
-
+        $certs = Get-CertificateWithPrivateKey
         foreach ($cert in $certs)
         {
             $expectedType = [Security.AccessControl.FileSystemAccessRule]
@@ -108,10 +102,6 @@ Describe 'Get-CPermission' {
                 $expectedType = [Security.AccessControl.CryptoKeyAccessRule]
             }
             $certPath = Join-Path -Path 'cert:' -ChildPath ($cert.PSPath | Split-Path -NoQualifier)
-            if ($cert.Thumbprint -eq '3044F98A1B1AB539E78FCD01FE8AFD58EF0B8BA6')
-            {
-                Write-Debug 'break'
-            }
             $numErrors = $Global:Error.Count
             $perms = Get-CPermission -Path $certPath -Inherited -ErrorAction SilentlyContinue
             if ($numErrors -ne $Global:Error.Count -and `
@@ -125,12 +115,7 @@ Describe 'Get-CPermission' {
     }
 
     It 'should get specific identity cert permission' {
-        Get-Item -Path 'Cert:\*\*' |
-            Where-Object 'Name' -NE 'UserDS' | # This store causes problems on PowerShell 7.
-            Get-ChildItem |
-            Where-Object { -not $_.PsIsContainer } |
-            Where-Object { $_.HasPrivateKey } |
-            Where-Object { $_.PrivateKey } |
+        Get-CertificateWithPrivateKey |
             ForEach-Object { Join-Path -Path 'cert:' -ChildPath (Split-Path -NoQualifier -Path $_.PSPath) } |
             ForEach-Object {
                 [Object[]]$rules = Get-CPermission -Path $_
@@ -145,7 +130,7 @@ Describe 'Get-CPermission' {
 
     It 'gets permissions for cng private key' {
         $certFilePath = Join-Path -Path $PSScriptRoot -ChildPath 'Certificates\CarbonRsaCng.pfx' -Resolve
-        $cert = Install-CCertificate -Path $certFilePath -StoreLocation CurrentUser -StoreName My
+        $cert = Install-CCertificate -Path $certFilePath -StoreLocation CurrentUser -StoreName My -PassThru
         try
         {
             $perms =

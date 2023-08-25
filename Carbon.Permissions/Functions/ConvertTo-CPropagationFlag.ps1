@@ -4,35 +4,34 @@ function ConvertTo-CPropagationFlag
     <#
     .SYNOPSIS
     Converts a `Carbon.Security.ContainerInheritanceFlags` value to a `System.Security.AccessControl.PropagationFlags` value.
-    
+
     .DESCRIPTION
     The `Carbon.Security.ContainerInheritanceFlags` enumeration encapsulates oth `System.Security.AccessControl.PropagationFlags` and `System.Security.AccessControl.InheritanceFlags`.  Make sure you also call `ConvertTo-InheritancewFlags` to get the inheritance value.
-    
+
     .OUTPUTS
     System.Security.AccessControl.PropagationFlags.
-    
+
     .LINK
     ConvertTo-CInheritanceFlag
-    
+
     .LINK
     Grant-CPermission
-    
+
     .EXAMPLE
     ConvertTo-CPropagationFlag -ContainerInheritanceFlag ContainerAndSubContainersAndLeaves
-    
+
     Returns `PropagationFlags.None`.
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory=$true)]
-        [Carbon.Security.ContainerInheritanceFlags]
+        [Carbon_Permissions_ContainerInheritanceFlags]
         # The value to convert to an `PropagationFlags` value.
 		[Alias('ContainerInheritanceFlags')]
         $ContainerInheritanceFlag
     )
 
     Set-StrictMode -Version 'Latest'
-
     Use-CallerPreference -Cmdlet $PSCmdlet -Session $ExecutionContext.SessionState
 
     $Flags = [Security.AccessControl.PropagationFlags]
@@ -56,9 +55,6 @@ function ConvertTo-CPropagationFlag
     {
         return $map[$key]
     }
-    
-    Write-Error ('Unknown Carbon.Security.ContainerInheritanceFlags enumeration value {0}.' -f $ContainerInheritanceFlag) 
+
+    Write-Error ('Unknown Carbon.Security.ContainerInheritanceFlags enumeration value {0}.' -f $ContainerInheritanceFlag)
 }
-
-Set-Alias -Name 'ConvertTo-PropagationFlags' -Value 'ConvertTo-CPropagationFlag'
-

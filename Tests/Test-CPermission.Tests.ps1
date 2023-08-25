@@ -1,14 +1,3 @@
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 #Requires -Version 5.1
 Set-StrictMode -Version 'Latest'
@@ -16,23 +5,30 @@ Set-StrictMode -Version 'Latest'
 BeforeAll {
     Set-StrictMode -Version 'Latest'
 
-    & (Join-Path -Path $PSScriptRoot -ChildPath 'Initialize-CarbonTest.ps1' -Resolve)
+    & (Join-Path -Path $PSScriptRoot -ChildPath 'Initialize-Test.ps1' -Resolve)
 
-    $script:identity = $CarbonTestUser.UserName
-    $script:tempDir = New-CTempDirectory
-    Install-CDirectory (Join-Path -path $script:tempDir -ChildPath 'Directory')
-    New-Item (Join-Path -path $script:tempDir -ChildPath 'File') -ItemType File
+    $psModulesPath = Join-Path -Path $PSScriptRoot -ChildPath '..\PSModules' -Resolve
+    Import-Module -Name (Join-Path -Path $psModulesPath -ChildPath 'Carbon.Cryptography' -Resolve) `
+                  -Function ('Install-CCertificate', 'Uninstall-CCertificate') `
+                  -Global
+    Import-Module -Name (Join-Path -Path $psModulesPath -ChildPath 'Carbon.Registry' -Resolve) `
+                  -Function @('Install-CRegistryKey') `
+                  -Global
 
-    $script:privateKeyPath = Join-Path -Path $PSScriptRoot -ChildPath 'Cryptography\CarbonTestPrivateKey.pfx' -Resolve
+    $script:identity = 'CarbonTestUser'
+    $script:tempDir = Join-Path -Path $env:TEMP -ChildPath "Carbon-Test-CPermission-$([IO.Path]::GetRandomFileName())"
+    New-Item (Join-Path -path $script:tempDir -ChildPath 'File') -ItemType File -Force
+
+    $script:privateKeyPath = Join-Path -Path $PSScriptRoot -ChildPath 'Certificates\CarbonTestPrivateKey.pfx' -Resolve
 
     $script:dirPath = Join-Path -Path $script:tempDir -ChildPath 'Directory'
     $script:filePath = Join-Path -Path $script:dirPath -ChildPath 'File'
-    New-Item -Path $script:filePath -ItemType File
+    New-Item -Path $script:filePath -ItemType File -Force -ErrorAction Ignore
     Grant-CPermission -Identity $script:identity -Permission ReadAndExecute -Path $script:dirPath -ApplyTo 'ChildLeaves'
 
     $script:tempKeyPath = 'hkcu:\Software\Carbon\Test'
     $script:keyPath = Join-Path -Path $script:tempKeyPath -ChildPath 'Test-CPermission'
-    Install-CRegistryKey -Path $script:keyPath -NoWarn
+    Install-CRegistryKey -Path $script:keyPath
     $script:childKeyPath = Join-Path -Path $script:keyPath -ChildPath 'ChildKey'
     Grant-CPermission -Identity $script:identity `
                       -Permission 'ReadKey','WriteKey' `
@@ -52,8 +48,8 @@ BeforeAll {
 }
 
 AfterAll {
-    Remove-Item -Path $script:tempDir -Recurse
-    Remove-Item -Path $script:tempKeyPath -Recurse
+    Remove-Item -Path $script:tempDir -Recurse -ErrorAction Ignore
+    Remove-Item -Path $script:tempKeyPath -Recurse -ErrorAction Ignore
 }
 
 Describe 'Test-CPermission' {
@@ -150,7 +146,7 @@ Describe 'Test-CPermission' {
     }
 
     It 'should check permission on private key' {
-        $cert = Install-CCertificate -Path $script:privateKeyPath -StoreLocation LocalMachine -StoreName My -NoWarn
+        $cert = Install-CCertificate -Path $script:privateKeyPath -StoreLocation LocalMachine -StoreName My -PassThru
         try
         {
             $certPath = Join-Path -Path 'cert:\LocalMachine\My' -ChildPath $cert.Thumbprint
@@ -171,7 +167,7 @@ Describe 'Test-CPermission' {
         }
         finally
         {
-            Uninstall-CCertificate -Thumbprint $cert.Thumbprint -StoreLocation LocalMachine -StoreName My -NoWarn
+            Uninstall-CCertificate -Thumbprint $cert.Thumbprint -StoreLocation LocalMachine -StoreName My
         }
     }
 

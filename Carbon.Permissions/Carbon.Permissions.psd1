@@ -36,7 +36,7 @@
     Copyright = '(c) WebMD Health Services.'
 
     # Description of the functionality provided by this module
-    Description = ''
+    Description = 'Managing file system, registry, and private key permissions.'
 
     # Minimum version of the Windows PowerShell engine required by this module
     PowerShellVersion = '5.1'
@@ -76,6 +76,10 @@
 
     # Functions to export from this module. Only list public function here.
     FunctionsToExport = @(
+        'Get-CPermission',
+        'Grant-CPermission',
+        'Revoke-CPermission',
+        'Test-CPermission'
     )
 
     # Cmdlets to export from this module. By default, you get a script module, so there are no cmdlets.

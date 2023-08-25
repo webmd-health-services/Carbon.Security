@@ -1,5 +1,5 @@
 
-function ConvertTo-CContainerInheritanceFlags
+function ConvertTo-CContainerInheritanceFlag
 {
     <#
     .SYNOPSIS
@@ -22,12 +22,12 @@ function ConvertTo-CContainerInheritanceFlags
     Test-CPermission
 
     .EXAMPLE
-    ConvertTo-CContainerInheritanceFlags -InheritanceFlags 'ContainerInherit' -PropagationFlags 'None'
+    ConvertTo-CContainerInheritanceFlag -InheritanceFlags 'ContainerInherit' -PropagationFlags 'None'
 
-    Demonstrates how to convert `InheritanceFlags` and `PropagationFlags` enumeration values into a `ContainerInheritanceFlags`. In this case, `[Carbon.Security.ContainerInheritanceFlags]::ContainerAndSubContainers` is returned.
+    Demonstrates how to convert `InheritanceFlags` and `PropagationFlags` enumeration values into a `ContainerInheritanceFlags`. In this case, `[Carbon_Permissions_ContainerInheritanceFlags]::ContainerAndSubContainers` is returned.
     #>
     [CmdletBinding()]
-    [OutputType([Carbon.Security.ContainerInheritanceFlags])]
+    [OutputType([Carbon_Permissions_ContainerInheritanceFlags])]
     param(
         [Parameter(Mandatory=$true,Position=0)]
         [Security.AccessControl.InheritanceFlags]
@@ -51,63 +51,63 @@ function ConvertTo-CContainerInheritanceFlags
 
     if( $InheritanceFlags -eq [Security.AccessControl.InheritanceFlags]::None )
     {
-        return [Carbon.Security.ContainerInheritanceFlags]::Container
+        return [Carbon_Permissions_ContainerInheritanceFlags]::Container
     }
     elseif( $InheritanceFlags -eq [Security.AccessControl.InheritanceFlags]::ContainerInherit )
     {
         if( $propFlagsInheritOnly )
         {
-            return [Carbon.Security.ContainerInheritanceFlags]::SubContainers
+            return [Carbon_Permissions_ContainerInheritanceFlags]::SubContainers
         }
         elseif( $propFlagsInheritOnlyNoPropagate )
         {
-            return [Carbon.Security.ContainerInheritanceFlags]::ChildContainers
+            return [Carbon_Permissions_ContainerInheritanceFlags]::ChildContainers
         }
         elseif( $propFlagsNone )
         {
-            return [Carbon.Security.ContainerInheritanceFlags]::ContainerAndSubContainers
+            return [Carbon_Permissions_ContainerInheritanceFlags]::ContainerAndSubContainers
         }
         elseif( $propFlagsNoPropagate )
         {
-            return [Carbon.Security.ContainerInheritanceFlags]::ContainerAndChildContainers
+            return [Carbon_Permissions_ContainerInheritanceFlags]::ContainerAndChildContainers
         }
     }
     elseif( $InheritanceFlags -eq [Security.AccessControl.InheritanceFlags]::ObjectInherit )
     {
         if( $propFlagsInheritOnly )
         {
-            return [Carbon.Security.ContainerInheritanceFlags]::Leaves
+            return [Carbon_Permissions_ContainerInheritanceFlags]::Leaves
         }
         elseif( $propFlagsInheritOnlyNoPropagate )
         {
-            return [Carbon.Security.ContainerInheritanceFlags]::ChildLeaves
+            return [Carbon_Permissions_ContainerInheritanceFlags]::ChildLeaves
         }
         elseif( $propFlagsNone )
         {
-            return [Carbon.Security.ContainerInheritanceFlags]::ContainerAndLeaves
+            return [Carbon_Permissions_ContainerInheritanceFlags]::ContainerAndLeaves
         }
         elseif( $propFlagsNoPropagate )
         {
-            return [Carbon.Security.ContainerInheritanceFlags]::ContainerAndChildLeaves
+            return [Carbon_Permissions_ContainerInheritanceFlags]::ContainerAndChildLeaves
         }
     }
     elseif( $InheritanceFlags -eq ([Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [Security.AccessControl.InheritanceFlags]::ObjectInherit ) )
     {
         if( $propFlagsInheritOnly )
         {
-            return [Carbon.Security.ContainerInheritanceFlags]::SubContainersAndLeaves
+            return [Carbon_Permissions_ContainerInheritanceFlags]::SubContainersAndLeaves
         }
         elseif( $propFlagsInheritOnlyNoPropagate )
         {
-            return [Carbon.Security.ContainerInheritanceFlags]::ChildContainersAndChildLeaves
+            return [Carbon_Permissions_ContainerInheritanceFlags]::ChildContainersAndChildLeaves
         }
         elseif( $propFlagsNone )
         {
-            return [Carbon.Security.ContainerInheritanceFlags]::ContainerAndSubContainersAndLeaves
+            return [Carbon_Permissions_ContainerInheritanceFlags]::ContainerAndSubContainersAndLeaves
         }
         elseif( $propFlagsNoPropagate )
         {
-            return [Carbon.Security.ContainerInheritanceFlags]::ContainerAndChildContainersAndChildLeaves
+            return [Carbon_Permissions_ContainerInheritanceFlags]::ContainerAndChildContainersAndChildLeaves
         }
     }
 }

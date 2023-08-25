@@ -93,7 +93,7 @@ function Grant-CPermission
     Carbon_Permission
 
     .LINK
-    ConvertTo-CContainerInheritanceFlags
+    ConvertTo-CContainerInheritanceFlag
 
     .LINK
     Disable-CAclInheritance
@@ -156,42 +156,51 @@ function Grant-CPermission
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType([Security.AccessControl.AccessRule])]
     param(
-        [Parameter(Mandatory)]
         # The path on which the permissions should be granted.  Can be a file system, registry, or certificate path.
-        [String]$Path,
-
         [Parameter(Mandatory)]
+        [String] $Path,
+
         # The user or group getting the permissions.
-        [String]$Identity,
-
         [Parameter(Mandatory)]
-		[Alias('Permissions')]
-        # The permission: e.g. FullControl, Read, etc.  For file system items, use values from [System.Security.AccessControl.FileSystemRights](http://msdn.microsoft.com/en-us/library/system.security.accesscontrol.filesystemrights.aspx).  For registry items, use values from [System.Security.AccessControl.RegistryRights](http://msdn.microsoft.com/en-us/library/system.security.accesscontrol.registryrights.aspx).
-        [String[]]$Permission,
+        [String] $Identity,
 
-        # How to apply container permissions.  This controls the inheritance and propagation flags.  Default is full inheritance, e.g. `ContainersAndSubContainersAndLeaves`. This parameter is ignored if `Path` is to a leaf item.
-        [Carbon.Security.ContainerInheritanceFlags]$ApplyTo = ([Carbon.Security.ContainerInheritanceFlags]::ContainerAndSubContainersAndLeaves),
+        # The permission: e.g. FullControl, Read, etc.  For file system items, use values from
+        # [System.Security.AccessControl.FileSystemRights](http://msdn.microsoft.com/en-us/library/system.security.accesscontrol.filesystemrights.aspx).
+        # For registry items, use values from
+        # [System.Security.AccessControl.RegistryRights](http://msdn.microsoft.com/en-us/library/system.security.accesscontrol.registryrights.aspx).
+        [Parameter(Mandatory)]
+        [String[]] $Permission,
 
-        # The type of rule to apply, either `Allow` or `Deny`. The default is `Allow`, which will allow access to the item. The other option is `Deny`, which will deny access to the item.
+        # How to apply container permissions.  This controls the inheritance and propagation flags.  Default is full
+        # inheritance, e.g. `ContainersAndSubContainersAndLeaves`. This parameter is ignored if `Path` is to a leaf
+        # item.
+        [Carbon_Permissions_ContainerInheritanceFlags] $ApplyTo =
+            ([Carbon_Permissions_ContainerInheritanceFlags]::ContainerAndSubContainersAndLeaves),
+
+        # The type of rule to apply, either `Allow` or `Deny`. The default is `Allow`, which will allow access to the
+        # item. The other option is `Deny`, which will deny access to the item.
         #
         # This parameter was added in Carbon 2.3.0.
-        [Security.AccessControl.AccessControlType]$Type = [Security.AccessControl.AccessControlType]::Allow,
+        [Security.AccessControl.AccessControlType] $Type = [Security.AccessControl.AccessControlType]::Allow,
 
         # Removes all non-inherited permissions on the item.
-        [switch]$Clear,
+        [switch] $Clear,
 
-        # Returns an object representing the permission created or set on the `Path`. The returned object will have a `Path` propery added to it so it can be piped to any cmdlet that uses a path.
+        # Returns an object representing the permission created or set on the `Path`. The returned object will have a
+        # `Path` propery added to it so it can be piped to any cmdlet that uses a path.
         #
         # The `PassThru` switch is new in Carbon 2.0.
-        [switch]$PassThru,
+        [switch] $PassThru,
 
         # Grants permissions, even if they are already present.
-        [switch]$Force,
+        [switch] $Force,
 
-        # When granting permissions on files, directories, or registry items, add the permissions as a new access rule instead of replacing any existing access rules. This switch is ignored when setting permissions on certificates.
+        # When granting permissions on files, directories, or registry items, add the permissions as a new access rule
+        # instead of replacing any existing access rules. This switch is ignored when setting permissions on
+        # certificates.
         #
         # This switch was added in Carbon 2.7.
-        [switch]$Append,
+        [switch] $Append,
 
         # ***Internal.*** Do not use.
         [String] $Description
@@ -218,20 +227,20 @@ function Grant-CPermission
         return
     }
 
-    $rights = $Permission | ConvertTo-ProviderAccessControlRights -ProviderName $providerName
+    $rights = $Permission | ConvertTo-CProviderAccessControlRights -ProviderName $providerName
     if (-not $rights)
     {
         Write-Error ('Unable to grant {0} {1} permissions on {2}: received an unknown permission.' -f $Identity,($Permission -join ','),$Path)
         return
     }
 
-    if( -not (Test-CIdentity -Name $Identity -NoWarn) )
+    if( -not (Test-CPrincipal -Name $Identity) )
     {
         Write-Error ('Identity ''{0}'' not found.' -f $Identity)
         return
     }
 
-    $Identity = Resolve-CIdentityName -Name $Identity
+    $Identity = Resolve-CPrincipalName -Name $Identity
 
     if ($providerName -eq 'CryptoKey')
     {
@@ -333,7 +342,7 @@ function Grant-CPermission
                 Write-Information "${Description}  ${Identity}  + ${newType} ${rights}"
                 $keySecurity.SetAccessRule($accessRule)
                 $action = "grant ""${Identity} ${newType} ${rights} permission(s)"
-                Set-CryptoKeySecurity -Certificate $certificate -CryptoKeySecurity $keySecurity -Action $action
+                Set-CCryptoKeySecurity -Certificate $certificate -CryptoKeySecurity $keySecurity -Action $action
             }
 
             if( $PassThru )
@@ -373,7 +382,7 @@ function Grant-CPermission
     }
 
     $rulesToRemove = $null
-    $Identity = Resolve-CIdentity -Name $Identity -NoWarn
+    $Identity = Resolve-CPrincipalName -Name $Identity
     if( $Clear )
     {
         $rulesToRemove = $currentAcl.Access |
@@ -450,6 +459,3 @@ function Grant-CPermission
         return $accessRule
     }
 }
-
-Set-Alias -Name 'Grant-Permissions' -Value 'Grant-CPermission'
-

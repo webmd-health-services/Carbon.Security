@@ -5,7 +5,15 @@ Set-StrictMode -Version 'Latest'
 BeforeAll {
     Set-StrictMode -Version 'Latest'
 
-    & (Join-Path -Path $PSScriptRoot -ChildPath 'Initialize-CarbonTest.ps1' -Resolve)
+    & (Join-Path -Path $PSScriptRoot -ChildPath 'Initialize-Test.ps1' -Resolve)
+
+    $psModulesPath = Join-Path -Path $PSScriptRoot -ChildPath '..\PSModules' -Resolve
+    Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath '..\Carbon.Permissions\Modules\Carbon.Accounts' -Resolve) `
+                  -Function ('Resolve-CPrincipalName') `
+                  -Global
+    Import-Module -Name (Join-Path -Path $psModulesPath -ChildPath 'Carbon.Cryptography' -Resolve) `
+                  -Function ('Install-CCertificate', 'Uninstall-CCertificate') `
+                  -Global
 
     $script:testDirPath = $null
     $script:testNum = 0
@@ -15,10 +23,7 @@ BeforeAll {
     $user2 = 'CarbonGrantPerms2'
     $containerPath = $null
     $regContainerPath = $null
-    $script:privateKeyPath = Join-Path -Path $PSScriptRoot -ChildPath 'Cryptography\CarbonTestPrivateKey.pfx' -Resolve
-
-    Install-CUser -Credential (New-CCredential -Username $user -Password 'a1b2c3d4!') -Description 'User for Carbon Grant-CPermission tests.'
-    Install-CUser -Credential (New-CCredential -Username $user2 -Password 'a1b2c3d4!') -Description 'User for Carbon Grant-CPermission tests.'
+    $script:privateKeyPath = Join-Path -Path $PSScriptRoot -ChildPath 'Certificates\CarbonTestPrivateKey.pfx' -Resolve
 
     function Assert-InheritanceFlags
     {
@@ -53,19 +58,15 @@ BeforeAll {
             $ProviderName = 'FileSystem'
         )
 
-        $rights = Invoke-CPrivateCommand -Name 'ConvertTo-ProviderAccessControlRights' `
-                                         -Parameter @{
-                                            ProviderName = $ProviderName;
-                                            InputObject = $permissions
-                                         }
+        $rights = Invoke-ConvertToCProviderAccessControlRights -ProviderName $ProviderName -Permission $permissions
 
         $ace = Get-CPermission -Path $path -Identity $identity
         $ace | Should -Not -BeNullOrEmpty
 
         if( $ApplyTo )
         {
-            $expectedInheritanceFlags = ConvertTo-CInheritanceFlag -ContainerInheritanceFlag $ApplyTo
-            $expectedPropagationFlags = ConvertTo-CPropagationFlag -ContainerInheritanceFlag $ApplyTo
+            $expectedInheritanceFlags = Invoke-ConvertToCInheritanceFlag -ContainerInheritanceFlag $ApplyTo
+            $expectedPropagationFlags = Invoke-ConvertToCPropagationFlag -ContainerInheritanceFlag $ApplyTo
         }
         else
         {
@@ -121,7 +122,7 @@ BeforeAll {
         $result = Grant-CPermission -Identity $Identity -Permission $Permissions -Path $path -PassThru @optionalParams
         $result = $result | Select-Object -Last 1
         $result | Should -Not -BeNullOrEmpty
-        $result.IdentityReference | Should -Be (Resolve-CIdentityName $Identity)
+        $result.IdentityReference | Should -Be (Resolve-CPrincipalName $Identity)
         $result | Should -BeOfType $expectedRuleType
         if( -not $ExpectedPermission )
         {
@@ -143,7 +144,7 @@ BeforeAll {
         if( $FileSystem )
         {
             $path = Join-Path -Path $script:testDirPath -ChildPath ([IO.Path]::GetRandomFileName())
-            Install-CDirectory -Path $path
+            New-Item -Path $path -ItemType 'Directory' -Force -ErrorAction Ignore | Out-Null
             return $path
         }
 
@@ -163,7 +164,7 @@ BeforeAll {
         $containerPath = New-TestContainer -FileSystem
 
         $leafPath = Join-Path -Path $containerPath -ChildPath ([IO.Path]::GetRandomFileName())
-        $null = New-Item -ItemType 'File' -Path $leafPath
+        New-Item -ItemType 'File' -Path $leafPath | Out-Null
         return $leafPath
     }
 }
@@ -344,10 +345,10 @@ Describe 'Grant-CPermission' {
 
         Invoke-GrantPermissions -Identity $user -Permission FullControl -Path $containerPath
 
-        Mock -CommandName 'Set-Acl' -Verifiable -ModuleName 'Carbon'
+        Mock -CommandName 'Set-Acl' -Verifiable -ModuleName 'Carbon.Permissions'
 
         Invoke-GrantPermissions -Identity $user -Permission FullControl -Path $containerPath
-        Assert-MockCalled -CommandName 'Set-Acl' -Times 0 -ModuleName 'Carbon'
+        Should -Invoke 'Set-Acl' -Times 0 -ModuleName 'Carbon.Permissions'
     }
 
     It 'when changing inheritance flags' {
@@ -357,18 +358,20 @@ Describe 'Grant-CPermission' {
     }
 
     It 'when forcing a permission change and the user already has the permissions' {
+        $Global:VerbosePreference = $Global:DebugPreference = 'Continue'
         $containerPath = New-TestContainer -FileSystem
 
         Invoke-GrantPermissions -Identity $user -Permission FullControl -Path $containerPath -ApplyTo ContainerAndLeaves
 
-        Mock -CommandName 'Set-Acl' -Verifiable -ModuleName 'Carbon'
+        Mock -CommandName 'Set-Acl' -Verifiable -ModuleName 'Carbon.Permissions'
 
         Grant-CPermission -Identity $user -Permission FullControl -Path $containerPath -Apply ContainerAndLeaves -Force
 
-        Assert-MockCalled -CommandName 'Set-Acl' -Times 1 -Exactly -ModuleName 'Carbon'
+        Should -Invoke 'Set-Acl' -Times 1 -Exactly -ModuleName 'Carbon.Permissions'
     }
 
     It 'when an item is hidden' {
+        $Global:VerbosePreference = $Global:DebugPreference = 'SilentlyContinue'
         $Global:Error.Clear()
 
         $path = New-TestFile
@@ -424,7 +427,7 @@ Describe 'Grant-CPermission' {
     $testCases = @('LocalMachine', 'CurrentUser')
     It 'when setting permissions on a private key in the <_> location' -TestCases $testCases -Skip:$skip {
         $location = $_
-        $cert = Install-CCertificate -Path $script:privateKeyPath -StoreLocation $location -StoreName My -NoWarn
+        $cert = Install-CCertificate -Path $script:privateKeyPath -StoreLocation $location -StoreName My -PassThru
         try
         {
             $certPath = Join-Path -Path ('cert:\{0}\My' -f $location) -ChildPath $cert.Thumbprint
@@ -434,7 +437,7 @@ Describe 'Grant-CPermission' {
             $expectedPerm = 'GenericAll'
 
             # CryptoKey does not exist in .NET standard/core so we will have to use FileSystem instead
-            if( -not (Invoke-CPrivateCommand -Name 'Test-CCryptoKeyAvailable') )
+            if( -not (Invoke-TestCCryptoKeyAvailable) )
             {
                 $expectedProviderName = 'FileSystem'
                 $readPermission = 'Read'
@@ -490,29 +493,29 @@ Describe 'Grant-CPermission' {
                                     -ProviderName $expectedProviderName
 
             # CryptoKey does not exist in .NET standard/core
-            if( (Invoke-CPrivateCommand -Name 'Test-CCryptoKeyAvailable') )
+            if( (Invoke-TestCCryptoKeyAvailable) )
             {
-                Mock -CommandName 'Set-CryptoKeySecurity' -Verifiable -ModuleName 'Carbon'
+                Mock -CommandName 'Set-CCryptoKeySecurity' -Verifiable -ModuleName 'Carbon.Permissions'
 
                 # Context 'permissions exist' {
                 # Now, check that permissions don't get re-applied.
                 Grant-CPermission -Path $certPath -Identity $user2 -Permission $readPermission
-                Assert-MockCalled -CommandName 'Set-CryptoKeySecurity' -ModuleName 'Carbon' -Times 0
+                Should -Invoke 'Set-CCryptoKeySecurity' -ModuleName 'Carbon.Permissions' -Times 0
 
                 # Context 'permissions exist but forcing the change' {
                 Grant-CPermission -Path $certPath -Identity $user2 -Permission $readPermission -Force
-                Assert-MockCalled -CommandName 'Set-CryptoKeySecurity' -ModuleName 'Carbon' -Times 1 -Exactly
+                Should -Invoke 'Set-CCryptoKeySecurity' -ModuleName 'Carbon.Permissions' -Times 1 -Exactly
             }
         }
         finally
         {
-            Uninstall-CCertificate -Thumbprint $cert.Thumbprint -StoreLocation $location -StoreName My -NoWarn
+            Uninstall-CCertificate -Thumbprint $cert.Thumbprint -StoreLocation $location -StoreName My
         }
     }
 
     It 'grants permissions to cng key' {
         $certPath = Join-Path -Path $PSScriptRoot -ChildPath 'Certificates\CarbonRsaCng.pfx' -Resolve
-        $cert = Install-CCertificate -Path $certPath -StoreLocation CurrentUser -StoreName My -NoWarn
+        $cert = Install-CCertificate -Path $certPath -StoreLocation CurrentUser -StoreName My -PassThru
         try
         {
             $certPath = Join-Path -Path 'cert:\CurrentUser\My' -ChildPath $cert.Thumbprint
@@ -527,7 +530,7 @@ Describe 'Grant-CPermission' {
         }
         finally
         {
-            Uninstall-CCertificate -Thumbprint $cert.Thumbprint -StoreLocation CurrentUser -StoreName My -NoWarn
+            Uninstall-CCertificate -Thumbprint $cert.Thumbprint -StoreLocation CurrentUser -StoreName My
         }
     }
 
