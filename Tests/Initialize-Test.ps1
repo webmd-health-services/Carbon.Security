@@ -29,8 +29,8 @@ $Global:WhatIfPreference = $WhatIfPreference = $false
 try
 {
     $modules = [ordered]@{
-        'MODULE_NAME' = '..\MODULE_NAME';
-        'MODULE_NAMETestHelper' = 'MODULE_NAMETestHelper';
+        'Carbon.Permissions' = '..\Carbon.Permissions';
+        'Carbon.PermissionsTestHelper' = 'Carbon.PermissionsTestHelper';
     }
     foreach( $moduleName in $modules.Keys )
     {

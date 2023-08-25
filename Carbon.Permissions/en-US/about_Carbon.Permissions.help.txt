@@ -1,0 +1,8 @@
+TOPIC
+    about_Carbon.Permissions
+
+SHORT DESCRIPTION
+    Carbon.Permissions is a PowerShell module for...
+
+LONG DESCRIPTION
+    The Carbon.Permissions PowerShell module...

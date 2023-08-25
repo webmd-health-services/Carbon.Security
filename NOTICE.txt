@@ -1,5 +1,5 @@
-MODULE_NAME
+Carbon.Permissions
 
-Copyright [YYYY] WebMD Health Services
+Copyright 2023 WebMD Health Services
 
 This product includes software developed at WebMD Health Services (https://www.webmdhealthservices.com/).
