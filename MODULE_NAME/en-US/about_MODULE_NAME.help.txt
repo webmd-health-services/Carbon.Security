@@ -1,0 +1,8 @@
+TOPIC
+    about_MODULE_NAME
+
+SHORT DESCRIPTION
+    MODULE_NAME is a PowerShell module for...
+
+LONG DESCRIPTION
+    The MODULE_NAME PowerShell module...
