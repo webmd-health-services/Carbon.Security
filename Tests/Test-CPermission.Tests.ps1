@@ -1,4 +1,6 @@
 
+using namespace System.Security.AccessControl
+
 #Requires -Version 5.1
 Set-StrictMode -Version 'Latest'
 
@@ -24,7 +26,11 @@ BeforeAll {
     $script:dirPath = Join-Path -Path $script:tempDir -ChildPath 'Directory'
     $script:filePath = Join-Path -Path $script:dirPath -ChildPath 'File'
     New-Item -Path $script:filePath -ItemType File -Force -ErrorAction Ignore
-    Grant-CPermission -Identity $script:identity -Permission ReadAndExecute -Path $script:dirPath -ApplyTo 'ChildLeaves'
+    Grant-CPermission -Identity $script:identity `
+                      -Permission ReadAndExecute `
+                      -Path $script:dirPath `
+                      -InheritanceFlag ObjectInherit `
+                      -PropagationFlag InheritOnly
 
     $script:tempKeyPath = 'hkcu:\Software\Carbon\Test'
     $script:keyPath = Join-Path -Path $script:tempKeyPath -ChildPath 'Test-CPermission'
@@ -33,7 +39,8 @@ BeforeAll {
     Grant-CPermission -Identity $script:identity `
                       -Permission 'ReadKey','WriteKey' `
                       -Path $script:keyPath `
-                      -ApplyTo 'ChildLeaves'
+                      -InheritanceFlag ObjectInherit `
+                      -PropagationFlag InheritOnly
 
     $script:testDirPermArgs = @{
         Path = $script:dirPath;
@@ -99,7 +106,8 @@ Describe 'Test-CPermission' {
         $warning = @()
         Test-CPermission @testFilePermArgs `
                          -Permission 'ReadAndExecute' `
-                         -ApplyTo SubContainers `
+                         -InheritanceFlag ContainerInherit `
+                         -PropagationFlag InheritOnly `
                          -Inherited `
                          -WarningVariable 'warning' `
                          -WarningAction SilentlyContinue |
@@ -126,23 +134,37 @@ Describe 'Test-CPermission' {
     }
 
     It 'should check ungranted inheritance flags' {
-        Test-CPermission @testDirPermArgs -Permission 'ReadAndExecute' -ApplyTo ContainerAndSubContainersAndLeaves  |
+        $inheritanceFlags = [InheritanceFlags]::ContainerInherit -bor [InheritanceFlags]::ObjectInherit
+        Test-CPermission @testDirPermArgs -Permission 'ReadAndExecute' -InheritanceFlag $inheritanceFlags |
             Should -BeFalse
     }
 
     It 'should check granted inheritance flags' {
-        Test-CPermission @testDirPermArgs -Permission 'ReadAndExecute' -ApplyTo ContainerAndLeaves | Should -BeTrue
-        Test-CPermission @testDirPermArgs -Permission 'ReadAndExecute' -ApplyTo ChildLeaves  | Should -BeTrue
+        Test-CPermission @testDirPermArgs -Permission 'ReadAndExecute' -InheritanceFlag ObjectInherit | Should -BeTrue
+        Test-CPermission @testDirPermArgs `
+                         -Permission 'ReadAndExecute' `
+                         -InheritanceFlag ObjectInherit `
+                         -PropagationFlag InheritOnly |
+            Should -BeTrue
     }
 
 
     It 'should check exact ungranted inheritance flags' {
-        Test-CPermission @testDirPermArgs -Permission 'ReadAndExecute' -ApplyTo ContainerAndLeaves -Exact |
+        Test-CPermission @testDirPermArgs `
+                         -Permission 'ReadAndExecute' `
+                         -InheritanceFlag ObjectInherit `
+                         -PropagationFlag None `
+                         -Exact |
             Should -BeFalse
     }
 
     It 'should check exact granted inheritance flags' {
-        Test-CPermission @testDirPermArgs -Permission 'ReadAndExecute' -ApplyTo ChildLeaves -Exact | Should -BeTrue
+        Test-CPermission @testDirPermArgs `
+                         -Permission 'ReadAndExecute' `
+                         -InheritanceFlag ObjectInherit `
+                         -PropagationFlag InheritOnly `
+                         -Exact |
+            Should -BeTrue
     }
 
     It 'should check permission on private key' {

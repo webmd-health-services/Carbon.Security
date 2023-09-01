@@ -6,38 +6,40 @@ function Test-CPermission
     Tests if permissions are set on a file, directory, registry key, or certificate's private key/key container.
 
     .DESCRIPTION
-    Sometimes, you don't want to use `Grant-CPermission` on a big tree.  In these situations, use `Test-CPermission` to
-    see if permissions are set on a given path.
+    The `Test-CPermission` function tests if permissions are granted to a user or group on a file, directory, registry
+    key, or certificate's private key/key container. Using this function and module are not recommended. Instead,
 
-    This function supports file system, registry, and certificate private key/key container permissions.  You can also
-    test the inheritance and propogation flags on containers, in addition to the permissions, with the `ApplyTo`
-    parameter.  See [Grant-CPermission](Grant-CPermission.html) documentation for an explanation of the `ApplyTo`
-    parameter.
+    * for file directory permissions, use `Test-CNtfsPermission` in the `Carbon.FileSystem` module.
+    * for registry permissions, use `Test-CRegistryPermission` in the `Carbon.Registry` module.
+    * for private key and/or key container permissions, use `Test-CPrivateKeyPermission` in the `Carbon.Cryptography`
+      module.
 
-    Inherited permissions on *not* checked by default.  To check inherited permission, use the `-Inherited` switch.
+    Pass the path to the item to the `Path` parameter. Pass the user/group name to the `Identity` parameter. Pass the
+    permissions to check for to the `Permission` parameter. If the user has all those permissions on that item, the
+    function returns `true`. Otherwise it returns `false`.
 
-    By default, the permission check is not exact, i.e. the user may have additional permissions to what you're
-    checking.  If you want to make sure the user has *exactly* the permission you want, use the `-Exact` switch.  Please
-    note that by default, NTFS will automatically add/grant `Synchronize` permission on an item, which is handled by
-    this function.
+    The `Permissions` attribute should be a list of
+    [FileSystemRights](http://msdn.microsoft.com/en-us/library/system.security.accesscontrol.filesystemrights.aspx),
+    [RegistryRights](http://msdn.microsoft.com/en-us/library/system.security.accesscontrol.registryrights.aspx), or
+    [CryptoKeyRights](http://msdn.microsoft.com/en-us/library/system.security.accesscontrol.cryptokeyrights.aspx), for
+    files/directories, registry keys, and certificate private keys, respectively. These commands will show you the
+    values for the appropriate permissions for your object:
 
-    When checking for permissions on certificate private keys/key containers, if a certificate doesn't have a private
-    key, `$true` is returned.
+        [Enum]::GetValues([Security.AccessControl.FileSystemRights])
+        [Enum]::GetValues([Security.AccessControl.RegistryRights])
+        [Enum]::GetValues([Security.AccessControl.CryptoKeyRights])
+
+    Extra/additional permissions on the item are ignored. To check that the user/group has the exact permissions passed
+    to the `Permission` parameter, use the `Exact` switch.
+
+    You can also check that the item's inheritenche and propagation flags by using the InheritanceFlag and
+     PropagationFlag parameters. Like the `Permissions` parameter, additional/extra flags are ignored. To ensure the
+     exact inheritance and propagation flags that are passed are also on the item, use the `Exact` switch.
+
+    By default, inherited permissions are ignored. To check inherited permission, use the `-Inherited` switch.
 
     .OUTPUTS
     System.Boolean.
-
-    .LINK
-    Carbon_Permission
-
-    .LINK
-    ConvertTo-CContainerInheritanceFlag
-
-    .LINK
-    Disable-CAclInheritance
-
-    .LINK
-    Enable-CAclInheritance
 
     .LINK
     Get-CPermission
@@ -80,7 +82,8 @@ function Test-CPermission
     #>
     [CmdletBinding()]
     param(
-        # The path on which the permissions should be checked.  Can be a file system or registry path.
+        # The path on which the permissions should be checked.  Can be a file system or registry path. For certificate
+        # private keys, pass a certificate provider path, e.g. `cert:`.
         [Parameter(Mandatory)]
         [String] $Path,
 
@@ -95,11 +98,11 @@ function Test-CPermission
         [Parameter(Mandatory)]
         [String[]] $Permission,
 
-        # The container and inheritance flags to check. Ignored if `Path` is a file. These are ignored if not supplied.
-        # See `Grant-CPermission` for detailed explanation of this parameter. This controls the inheritance and
-        # propagation flags.  Default is full inheritance, e.g. `ContainersAndSubContainersAndLeaves`. This parameter is
-        # ignored if `Path` is to a leaf item.
-        [Carbon_Permissions_ContainerInheritanceFlags] $ApplyTo,
+        # The inheritance flags to check for. Default is to ignore inheritance flags when testing the permission.
+        [InheritanceFlags] $InheritanceFlag,
+
+        # The propagation flags to check for. Default is to ignore propagation flags when testing the permission.
+        [PropagationFlags] $PropagationFlag,
 
         # Include inherited permissions in the check.
         [switch] $Inherited,
@@ -147,22 +150,17 @@ function Test-CPermission
         return
     }
 
-    $rightsPropertyName = '{0}Rights' -f $providerName
-    $inheritanceFlags = [Security.AccessControl.InheritanceFlags]::None
-    $propagationFlags = [Security.AccessControl.PropagationFlags]::None
-    $testApplyTo = $false
-    if( $PSBoundParameters.ContainsKey('ApplyTo') )
+    $rightsPropertyName = "${providerName}Rights"
+    $isLeaf = (Test-Path -Path $Path -PathType Leaf)
+    $testInheritanceFlag = $PSBoundParameters.ContainsKey('InheritanceFlag')
+    $testPropagationFlag = $PSBoundParameters.ContainsKey('PropagationFlag')
+    if ($isLeaf -and ($testInheritanceFlag -or $testPropagationFlag))
     {
-        if( (Test-Path -Path $Path -PathType Leaf ) )
-        {
-            Write-Warning "Can't test inheritance/propagation rules on a leaf. Please omit `ApplyTo` parameter when `Path` is a leaf."
-        }
-        else
-        {
-            $testApplyTo = $true
-            $inheritanceFlags = ConvertTo-CInheritanceFlag -ContainerInheritanceFlag $ApplyTo
-            $propagationFlags = ConvertTo-CPropagationFlag -ContainerInheritanceFlag $ApplyTo
-        }
+        $InheritanceFlag = [InheritanceFlags]::None
+        $PropagationFlag = [PropagationFlags]::None
+        $msg = 'Can''t test inheritance/propagation rules on a leaf. Please omit `InheritanceFlag` and ' +
+                '`PropagationFlag` parameter when `Path` is a leaf.'
+        Write-Warning $msg
     }
 
     if( $providerName -eq 'CryptoKey' )
@@ -174,12 +172,13 @@ function Test-CPermission
         }
     }
 
+
     $acl =
         Get-CPermission -Path $Path -Identity $Identity -Inherited:$Inherited |
         Where-Object 'AccessControlType' -eq 'Allow' |
         Where-Object 'IsInherited' -eq $Inherited |
         Where-Object {
-            if( $Exact )
+            if ($Exact)
             {
                 return ($_.$rightsPropertyName -eq $rights)
             }
@@ -187,21 +186,43 @@ function Test-CPermission
             return ($_.$rightsPropertyName -band $rights) -eq $rights
         } |
         Where-Object {
-            if( -not $testApplyTo )
+            if ($isLeaf)
             {
                 return $true
             }
 
-            if( $Exact )
+            if (-not $testInheritanceFlag)
             {
-                return ($_.InheritanceFlags -eq $inheritanceFlags) -and ($_.PropagationFlags -eq $propagationFlags)
+                return $true
             }
 
-            return (($_.InheritanceFlags -band $inheritanceFlags) -eq $inheritanceFlags) -and `
-                    (($_.PropagationFlags -and $propagationFlags) -eq $propagationFlags)
+            if ($Exact)
+            {
+                return ($_.InheritanceFlags -eq $InheritanceFlag)
+            }
+
+            return (($_.InheritanceFlags -band $InheritanceFlag) -eq $InheritanceFlag)
+        } |
+        Where-Object {
+            if ($isLeaf)
+            {
+                return $true
+            }
+
+            if (-not $testPropagationFlag)
+            {
+                return $true
+            }
+
+            if ($Exact)
+            {
+                return ($_.PropagationFlags -eq $PropagationFlag)
+            }
+
+            return (($_.PropagationFlags -band $PropagationFlag) -eq $PropagationFlag)
         }
 
-    if( $acl )
+    if ($acl)
     {
         return $true
     }

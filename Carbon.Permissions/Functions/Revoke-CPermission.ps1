@@ -3,22 +3,21 @@ function Revoke-CPermission
 {
     <#
     .SYNOPSIS
-    Revokes *explicit* permissions on a file, directory, registry key, or certificate's private key/key container.
+    Revokes *explicit* (i.e. non-inherited) permissions on a file, directory, registry key, or certificate's private
+    key/key container.
 
     .DESCRIPTION
-    Revokes all of an identity's *explicit* permissions on a file, directory, registry key, or certificate's private
-    key/key container. Only explicit permissions are considered; inherited permissions are ignored.
+    The `Revoke-CPermission` function removes a user or group's permissions on a file, directory, registry key, or
+    certificate's private key/key container. Using this function and module are not recommended. Instead,
 
-    If the identity doesn't have permission, nothing happens, not even errors written out.
+    * for file directory permissions, use `Revoke-CNtfsPermission` in the `Carbon.FileSystem` module.
+    * for registry permissions, use `Revoke-CRegistryPermission` in the `Carbon.Registry` module.
+    * for private key and/or key container permissions, use `Revoke-CPrivateKeyPermission` in the `Carbon.Cryptography`
+      module.
 
-    .LINK
-    Carbon_Permission
-
-    .LINK
-    Disable-CAclInheritance
-
-    .LINK
-    Enable-CAclInheritance
+    Pass the path to the item to the `Path` parameter. Pass the user/group's
+    name to the `Identity` parameter. If the identity has any non-inherited permissions on the item, those permissions
+    are removed. If the identity has no permissions on the item, nothing happens.
 
     .LINK
     Get-CPermission
@@ -47,7 +46,8 @@ function Revoke-CPermission
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
-        # The path on which the permissions should be revoked.  Can be a file system, registry, or certificate path.
+        # The path on which the permissions should be revoked. Can be a file system, registry, or certificate path. For
+        # certificate private keys, pass a certificate provider path, e.g. `cert:`.
         [Parameter(Mandatory)]
         [String] $Path,
 

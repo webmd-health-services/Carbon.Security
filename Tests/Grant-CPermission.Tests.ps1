@@ -1,4 +1,6 @@
 
+using namespace System.Security.AccessControl
+
 #Requires -Version 5.1
 Set-StrictMode -Version 'Latest'
 
@@ -7,10 +9,14 @@ BeforeAll {
 
     & (Join-Path -Path $PSScriptRoot -ChildPath 'Initialize-Test.ps1' -Resolve)
 
-    $psModulesPath = Join-Path -Path $PSScriptRoot -ChildPath '..\PSModules' -Resolve
-    Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath '..\Carbon.Permissions\Modules\Carbon.Accounts' -Resolve) `
+    $psModulesSharedPath = Join-Path -Path $PSScriptRoot -ChildPath '..\Carbon.Permissions\Modules' -Resolve
+    Import-Module -Name (Join-Path -Path $psModulesSharedPath -ChildPath 'Carbon.Core' -Resolve) `
+                  -Function ('Get-CPathProvider') `
+                  -Global
+    Import-Module -Name (Join-Path -Path $psModulesSharedPath -ChildPath 'Carbon.Accounts' -Resolve) `
                   -Function ('Resolve-CPrincipalName') `
                   -Global
+    $psModulesPath = Join-Path -Path $PSScriptRoot -ChildPath '..\PSModules' -Resolve
     Import-Module -Name (Join-Path -Path $psModulesPath -ChildPath 'Carbon.Cryptography' -Resolve) `
                   -Function ('Install-CCertificate', 'Uninstall-CCertificate') `
                   -Global
@@ -19,8 +25,8 @@ BeforeAll {
     $script:testNum = 0
 
     $Path = $null
-    $user = 'CarbonGrantPerms'
-    $user2 = 'CarbonGrantPerms2'
+    $script:user = 'CarbonGrantPerms'
+    $script:user2 = 'CarbonGrantPerms2'
     $containerPath = $null
     $regContainerPath = $null
     $script:privateKeyPath = Join-Path -Path $PSScriptRoot -ChildPath 'Certificates\CarbonTestPrivateKey.pfx' -Resolve
@@ -38,88 +44,67 @@ BeforeAll {
             $PropagationFlags
         )
 
-        $ace = Get-CPermission $containerPath -Identity $user
+        $ace = Get-CPermission $containerPath -Identity $script:user
 
         $ace | Should -Not -BeNullOrEmpty
-        $expectedRights = [Security.AccessControl.FileSystemRights]::Read -bor [Security.AccessControl.FileSystemRights]::Synchronize
-        $ace.FileSystemRights | Should -Be $expectedRights
+        $writeRights = [Security.AccessControl.FileSystemRights]::Read -bor [Security.AccessControl.FileSystemRights]::Synchronize
+        $ace.FileSystemRights | Should -Be $writeRights
         $ace.InheritanceFlags | Should -Be $InheritanceFlags
         $ace.PropagationFlags | Should -Be $PropagationFlags
     }
 
-    function Assert-Permissions
+    function GivenDirectory
     {
-        param(
-            $identity,
-            $permissions,
-            $path,
-            $ApplyTo,
-            $Type = 'Allow',
-            $ProviderName = 'FileSystem'
-        )
-
-        $rights = Invoke-ConvertToCProviderAccessControlRights -ProviderName $ProviderName -Permission $permissions
-
-        $ace = Get-CPermission -Path $path -Identity $identity
-        $ace | Should -Not -BeNullOrEmpty
-
-        if( $ApplyTo )
-        {
-            $expectedInheritanceFlags = Invoke-ConvertToCInheritanceFlag -ContainerInheritanceFlag $ApplyTo
-            $expectedPropagationFlags = Invoke-ConvertToCPropagationFlag -ContainerInheritanceFlag $ApplyTo
-        }
-        else
-        {
-            $expectedInheritanceFlags = [Security.AccessControl.InheritanceFlags]::None
-            $expectedPropagationFlags = [Security.AccessControl.PropagationFlags]::None
-            if( Test-Path $path -PathType Container )
-            {
-                $expectedInheritanceFlags = [Security.AccessControl.InheritanceFlags]::ContainerInherit -bor `
-                                            [Security.AccessControl.InheritanceFlags]::ObjectInherit
-            }
-        }
-
-        $ace.InheritanceFlags | Should -Be $expectedInheritanceFlags
-        $ace.PropagationFlags | Should -Be $expectedPropagationFlags
-        $ace | Format-List * -Force | Out-String | Write-Debug
-        ($ace."$($providerName)Rights" -band $rights) | Should -Be $rights
-        $ace.AccessControlType | Should -Be ([Security.AccessControl.AccessControlType]$Type)
+        return (New-TestContainer -FileSystem)
     }
 
     function Invoke-GrantPermissions
     {
+        [CmdletBinding()]
         param(
             $Identity,
             $Permissions,
             $Path,
-            $ApplyTo,
+            [ValidateSet('FileSystem', 'Registry', 'CryptoKey')]
             $ProviderName = 'FileSystem',
             [switch] $Clear,
             $ExpectedPermission,
-            $Type
+            $Type,
+            $WithInheritanceFlags,
+            $WithPropagationFlags
         )
 
-        $optionalParams = @{ }
-        $assertOptionalParams = @{ }
-        if( $ApplyTo )
+        $grantArgs = @{ }
+        $thenArgs = @{
+            HasInheritanceFlags = ([InheritanceFlags]::ContainerInherit -bor [InheritanceFlags]::ObjectInherit);
+            HasPropagationFlags = [PropagationFlags]::None;
+        }
+
+        if ($PSBoundParameters.ContainsKey('WithInheritanceFlags'))
         {
-            $optionalParams['ApplyTo'] = $ApplyTo
-            $assertOptionalParams['ApplyTo'] = $ApplyTo
+            $grantArgs['InheritanceFlag'] = $WithInheritanceFlags
+            $thenArgs['HasInheritanceFlags'] = $WithInheritanceFlags
+        }
+
+        if ($PSBoundParameters.ContainsKey('WithPropagationFlag'))
+        {
+            $grantArgs['PropagationFlag'] = $WithPropagationFlags
+            $thenArgs['HasPropagationFlags'] = $WithPropagationFlags
         }
 
         if( $Clear )
         {
-            $optionalParams['Clear'] = $Clear
+            $grantArgs['Clear'] = $Clear
         }
 
         if( $Type )
         {
-            $optionalParams['Type'] = $Type
-            $assertOptionalParams['Type'] = $Type
+            $grantArgs['Type'] = $Type
+            $thenArgs['OfType'] = $Type
         }
 
         $expectedRuleType = ('Security.AccessControl.{0}AccessRule' -f $ProviderName) -as [Type]
-        $result = Grant-CPermission -Identity $Identity -Permission $Permissions -Path $path -PassThru @optionalParams
+        $result = Grant-CPermission -Identity $Identity -Permission $Permissions -Path $path -PassThru @grantArgs
         $result = $result | Select-Object -Last 1
         $result | Should -Not -BeNullOrEmpty
         $result.IdentityReference | Should -Be (Resolve-CPrincipalName $Identity)
@@ -129,7 +114,7 @@ BeforeAll {
             $ExpectedPermission = $Permissions
         }
 
-        Assert-Permissions $Identity $ExpectedPermission $Path -ProviderName $ProviderName @assertOptionalParams
+        ThenPermission -On $Path -For $Identity -Is $ExpectedPermission @thenArgs
     }
 
     function New-TestContainer
@@ -167,6 +152,60 @@ BeforeAll {
         New-Item -ItemType 'File' -Path $leafPath | Out-Null
         return $leafPath
     }
+
+    function ThenPermission
+    {
+        [CmdletBinding()]
+        param(
+            [String] $On,
+            [String] $For,
+            [Object] $Is,
+            [AccessControlType] $OfType,
+            $HasInheritanceFlags,
+            $HasPropagationFlags
+        )
+
+        if (-not $OfType)
+        {
+            $OfType = [AccessControlType]::Allow
+        }
+
+        $provider = Get-CPathProvider -Path $On
+        $expectedPermission = [FileSystemRights]0
+        $rightsPropertyName = 'FileSystemRights'
+        if ($provider.Name -eq 'Registry')
+        {
+            $expectedPermission = [RegistryRights]0
+            $rightsPropertyName = 'RegistryRights'
+        }
+        elseif ($provider.Name -eq 'Certificate')
+        {
+            if ((Invoke-TestCCryptoKeyAvailable) -and $Is -isnot [FileSystemRights])
+            {
+                $expectedPermission = [CryptoKeyRights]0
+                $rightsPropertyName = 'CryptoKeyRights'
+            }
+        }
+
+        $Is | ForEach-Object { $expectedPermission = $expectedPermission -bor $_ }
+        if ($rightsPropertyName -eq 'FileSystemRights' -and $OfType -eq [AccessControlType]::Allow)
+        {
+            $expectedPermission = $expectedPermission -bor [FileSystemRights]::Synchronize
+        }
+
+        $perm = Get-CPermission -Path $On -Identity $For
+        $perm | Should -Not -BeNullOrEmpty
+        $perm.AccessControlType | Should -Be $OfType
+        $perm.$rightsPropertyName | Should -Be $expectedPermission
+        if ($PSBoundParameters.ContainsKey('HasInheritanceFlag'))
+        {
+            $perm.InheritanceFlags | Should -Be $HasInheritanceFlag
+        }
+        if ($PSBoundParameters.ContainsKey('HasPropagationFlag'))
+        {
+            $perm.PropagationFlags | Should -Be $HasPropagationFlag
+        }
+    }
 }
 
 Describe 'Grant-CPermission' {
@@ -183,9 +222,10 @@ Describe 'Grant-CPermission' {
     It 'when changing permissions on a file' {
         $file = New-TestFile
         $identity = 'BUILTIN\Administrators'
-        $permissions = 'Read','Write'
+        $permissions = [FileSystemRights]::Read,[FileSystemRights]::Write
 
         Invoke-GrantPermissions -Identity $identity -Permissions $permissions -Path $file
+        ThenPermission -On $file -For $identity -Is $permissions
     }
 
     It 'when changing permissions on a directory' {
@@ -194,6 +234,7 @@ Describe 'Grant-CPermission' {
         $permissions = 'Read','Write'
 
         Invoke-GrantPermissions -Identity $identity -Permissions $permissions -Path $dir
+        ThenPermission -On $dir -For $identity -Is $permissions
     }
 
     It 'when changing permissions on registry key' {
@@ -203,11 +244,11 @@ Describe 'Grant-CPermission' {
                                 -Permission 'ReadKey' `
                                 -Path $regKey `
                                 -ProviderName 'Registry'
+        ThenPermission -On $regKey -For 'BUILTIN\Administrators' -Is ([RegistryRights]::ReadKey)
     }
 
     It 'when passing an invalid permission' {
         $path = New-TestFile
-        $failed = $false
         $error.Clear()
         $result = Grant-CPermission -Identity 'BUILTIN\Administrators' -Permission 'BlahBlahBlah' -Path $path -PassThru -ErrorAction SilentlyContinue
         $result | Should -BeNullOrEmpty
@@ -216,8 +257,10 @@ Describe 'Grant-CPermission' {
 
     It 'when clearing existing permissions' {
         $path = New-TestFile
-        Invoke-GrantPermissions $user 'FullControl' -Path $path
-        Invoke-GrantPermissions $user2 'FullControl' -Path $path
+        Invoke-GrantPermissions $script:user 'FullControl' -Path $path
+        ThenPermission -On $path -For $script:user -Is ([FileSystemRights]::FullControl)
+        Invoke-GrantPermissions $script:user2 'FullControl' -Path $path
+        ThenPermission -On $path -For $script:user2 -Is ([FileSystemRights]::FullControl)
 
         $result = Grant-CPermission -Identity 'Everyone' -Permission 'Read','Write' -Path $path -Clear -PassThru
         $result | Should -Not -BeNullOrEmpty
@@ -257,168 +300,133 @@ Describe 'Grant-CPermission' {
         ($rules.IdentityReference.Value -like 'Everyone') | Should -BeTrue
     }
 
-    $containerFlags = @(
-        'Container',
-        'ContainerAndSubContainers',
-        'ContainerAndLeaves',
-        'SubContainersAndLeaves',
-        'ContainerAndChildContainers',
-        'ContainerAndChildLeaves',
-        'ContainerAndChildContainersAndChildLeaves',
-        'ContainerAndSubContainersAndLeaves',
-        'SubContainers',
-        'Leaves',
-        'ChildContainers',
-        'ChildLeaves',
-        'ChildContainersAndChildLeaves'
-    )
+    $inheritanceFlags = [Enum]::GetValues([InheritanceFlags])
+    Context 'inheritance flag <_>' -ForEach $inheritanceFlags {
+        $inheritanceFlag = $_
+        $propagationFlags =
+            [Enum]::GetValues([PropagationFlags]) |
+            ForEach-Object { @{ PropagationFlag = $_ ; InheritanceFlag = $inheritanceFlag }}
 
-    It 'when setting <_> inheritance flags' -TestCases $containerFlags {
-        function New-FlagsObject
-        {
-            param(
-                [Security.AccessControl.InheritanceFlags]
-                $InheritanceFlags,
-
-                [Security.AccessControl.PropagationFlags]
-                $PropagationFlags
-            )
-
-            New-Object PsObject -Property @{ 'InheritanceFlags' = $InheritanceFlags; 'PropagationFlags' = $PropagationFlags }
+        Context 'propagation flag <propagationFlag>' -ForEach $propagationFlags {
+            It 'sets inheritance and propagation flags' {
+                $path = GivenDirectory
+                Grant-CPermission -Identity $script:user `
+                                  -Permission Read `
+                                  -Path $path `
+                                  -InheritanceFlag $InheritanceFlag `
+                                  -PropagationFlag $PropagationFlag
+                $expectedPropagationFlag = $PropagationFlag
+                if ($InheritanceFlag -eq [InheritanceFlags]::None)
+                {
+                    $expectedPropagationFlag = [PropagationFlags]::None
+                }
+                ThenPermission -On $path `
+                               -For $script:user `
+                               -Is ([FileSystemRights]::Read -bor [FileSystemRights]::Synchronize) `
+                               -HasInheritanceFlag $InheritanceFlag `
+                               -HasPropagationFlag $expectedPropagationFlag
+            }
         }
-
-        $IFlags = [Security.AccessControl.InheritanceFlags]
-        $PFlags = [Security.AccessControl.PropagationFlags]
-
-        $script:map = @{
-            # ContainerInheritanceFlags                                    InheritanceFlags                     PropagationFlags
-            'Container' =                                 (New-FlagsObject $IFlags::None                               $PFlags::None)
-            'ContainerAndSubContainers' =                 (New-FlagsObject $IFlags::ContainerInherit                   $PFlags::None)
-            'ContainerAndLeaves' =                        (New-FlagsObject $IFlags::ObjectInherit                      $PFlags::None)
-            'SubContainersAndLeaves' =                    (New-FlagsObject ($IFlags::ContainerInherit -bor $IFlags::ObjectInherit)   $PFlags::InheritOnly)
-            'ContainerAndChildContainers' =               (New-FlagsObject $IFlags::ContainerInherit                   $PFlags::NoPropagateInherit)
-            'ContainerAndChildLeaves' =                   (New-FlagsObject $IFlags::ObjectInherit                      $PFlags::NoPropagateInherit)
-            'ContainerAndChildContainersAndChildLeaves' = (New-FlagsObject ($IFlags::ContainerInherit -bor $IFlags::ObjectInherit)   $PFlags::NoPropagateInherit)
-            'ContainerAndSubContainersAndLeaves' =        (New-FlagsObject ($IFlags::ContainerInherit -bor $IFlags::ObjectInherit)   $PFlags::None)
-            'SubContainers' =                             (New-FlagsObject $IFlags::ContainerInherit                   $PFlags::InheritOnly)
-            'Leaves' =                                    (New-FlagsObject $IFlags::ObjectInherit                      $PFlags::InheritOnly)
-            'ChildContainers' =                           (New-FlagsObject $IFlags::ContainerInherit                   ($PFlags::InheritOnly -bor $PFlags::NoPropagateInherit))
-            'ChildLeaves' =                               (New-FlagsObject $IFlags::ObjectInherit                      ($PFlags::InheritOnly -bor $PFlags::NoPropagateInherit))
-            'ChildContainersAndChildLeaves' =             (New-FlagsObject ($IFlags::ContainerInherit -bor $IFlags::ObjectInherit)   ($PFlags::InheritOnly -bor $PFlags::NoPropagateInherit))
-        }
-
-        $containerInheritanceFlag = $_
-        $containerPath = New-TestContainer -FileSystem
-
-        $childLeafPath = Join-Path $containerPath 'ChildLeaf'
-        $null = New-Item $childLeafPath -ItemType File
-
-        $childContainerPath = Join-Path $containerPath 'ChildContainer'
-        $null = New-Item $childContainerPath -ItemType Directory
-
-        $grandchildContainerPath = Join-Path $childContainerPath 'GrandchildContainer'
-        $null = New-Item $grandchildContainerPath -ItemType Directory
-
-        $grandchildLeafPath = Join-Path $childContainerPath 'GrandchildLeaf'
-        $null = New-Item $grandchildLeafPath -ItemType File
-
-        $flags = $script:map[$containerInheritanceFlag]
-        Invoke-GrantPermissions -Identity $user -Path $containerPath -Permission Read -ApplyTo $containerInheritanceFlag
-    }
-
-    It 'when setting inheritance flags on a file' {
-        $path = New-TestFile
-        $warnings = @()
-        $result = Grant-CPermission -Identity $user -Permission Read -Path $path -ApplyTo Container -WarningAction SilentlyContinue -WarningVariable 'warnings'
-        $warnings | Should -Not -BeNullOrEmpty
-        ($warnings[0] -like '*Can''t apply inheritance/propagation rules to a leaf*') | Should -BeTrue
     }
 
     It 'when a user already has a different permission' {
         $containerPath = New-TestContainer -FileSystem
-        Invoke-GrantPermissions -Identity $user -Permission FullControl -Path $containerPath -ApplyTo Container
-        Invoke-GrantPermissions -Identity $user -Permission Read -Path $containerPath -Apply Container
+        Invoke-GrantPermissions -Identity $script:user -Permission FullControl -Path $containerPath
+        ThenPermission -On $containerPath -For $script:user -Is ([FileSystemRights]::FullControl)
+        Invoke-GrantPermissions -Identity $script:user -Permission Read -Path $containerPath
+        ThenPermission -On $containerPath -For $script:user -Is ([FileSystemRights]::Read)
     }
 
     It 'when a user already has the permissions' {
         $containerPath = New-TestContainer -FileSystem
 
-        Invoke-GrantPermissions -Identity $user -Permission FullControl -Path $containerPath
+        Invoke-GrantPermissions -Identity $script:user -Permission FullControl -Path $containerPath
+        ThenPermission -On $containerPath -For $script:user -Is ([FileSystemRights]::FullControl)
 
         Mock -CommandName 'Set-Acl' -Verifiable -ModuleName 'Carbon.Permissions'
 
-        Invoke-GrantPermissions -Identity $user -Permission FullControl -Path $containerPath
+        Invoke-GrantPermissions -Identity $script:user -Permission FullControl -Path $containerPath
+        ThenPermission -On $containerPath -For $script:user -Is ([FileSystemRights]::FullControl)
         Should -Invoke 'Set-Acl' -Times 0 -ModuleName 'Carbon.Permissions'
-    }
-
-    It 'when changing inheritance flags' {
-        $containerPath = New-TestContainer -FileSystem
-        Invoke-GrantPermissions -Identity $user -Permission FullControl -Path $containerPath -ApplyTo ContainerAndLeaves
-        Invoke-GrantPermissions -Identity $user -Permission Read -Path $containerPath -ApplyTo Container
     }
 
     It 'when forcing a permission change and the user already has the permissions' {
         $Global:VerbosePreference = $Global:DebugPreference = 'Continue'
         $containerPath = New-TestContainer -FileSystem
 
-        Invoke-GrantPermissions -Identity $user -Permission FullControl -Path $containerPath -ApplyTo ContainerAndLeaves
+        Invoke-GrantPermissions -Identity $script:user `
+                                -Permission FullControl `
+                                -Path $containerPath `
+                                -WithInheritanceFlags ObjectInherit `
+                                -WithPropagationFlags None
+        ThenPermission -On $containerPath `
+                       -For $script:user `
+                       -Is ([FileSystemRights]::FullControl) `
+                       -HasInheritanceFlags ObjectInherit `
+                       -HasPropagationFlags None
 
         Mock -CommandName 'Set-Acl' -Verifiable -ModuleName 'Carbon.Permissions'
 
-        Grant-CPermission -Identity $user -Permission FullControl -Path $containerPath -Apply ContainerAndLeaves -Force
+        Grant-CPermission -Identity $script:user `
+                           -Permission FullControl `
+                           -Path $containerPath `
+                           -InheritanceFlag ([InheritanceFlags]::ObjectInherit) `
+                           -PropagationFlag ([PropagationFlags]::None) `
+                           -Force
 
         Should -Invoke 'Set-Acl' -Times 1 -Exactly -ModuleName 'Carbon.Permissions'
     }
 
     It 'when an item is hidden' {
         $Global:VerbosePreference = $Global:DebugPreference = 'SilentlyContinue'
-        $Global:Error.Clear()
 
         $path = New-TestFile
         $item = Get-Item -Path $path
         $item.Attributes = $item.Attributes -bor [IO.FileAttributes]::Hidden
 
-        $result = Invoke-GrantPermissions -Identity $user -Permission Read -Path $path
+        Invoke-GrantPermissions -Identity $script:user -Permission Read -Path $path
+        ThenPermission -On $path -For $script:user -Is ([FileSystemRights]::Read)
         $Global:Error.Count | Should -Be 0
     }
 
     It 'when the path does not exist' {
-        $Global:Error.Clear()
-
-        $result = Grant-CPermission -Identity $user -Permission Read -Path 'C:\I\Do\Not\Exist' -PassThru -ErrorAction SilentlyContinue
+        $result = Grant-CPermission -Identity $script:user -Permission Read -Path 'C:\I\Do\Not\Exist' -PassThru -ErrorAction SilentlyContinue
         $result | Should -BeNullOrEmpty
         $Global:Error.Count | Should -BeGreaterThan 0
         $Global:Error[0] | Should -Match 'Cannot find path'
     }
 
     It 'when clearing a permission that already exists on a file' {
-        $Global:Error.Clear()
         $path = New-TestFile
-        Invoke-GrantPermissions -Identity $user -Permission Read -Path $Path
-        Invoke-GrantPermissions -Identity $user -Permission Read -Path $Path -Clear
+        Invoke-GrantPermissions -Identity $script:user -Permission Read -Path $Path
+        ThenPermission -On $path -For $script:user -Is ([FileSystemRights]::Read)
+        Invoke-GrantPermissions -Identity $script:user -Permission Read -Path $Path -Clear
+        ThenPermission -On $path -For $script:user -Is ([FileSystemRights]::Read)
         $Global:Error | Should -BeNullOrEmpty
     }
 
     It 'when clearing permissions that already exist on a directory' {
-        $Global:Error.Clear()
 
         $containerPath = New-TestContainer -FileSystem
 
-        Invoke-GrantPermissions -Identity $user -Permission Read -Path $containerPath
-        Invoke-GrantPermissions -Identity $user -Permission Read -Path $containerPath -Clear
+        Invoke-GrantPermissions -Identity $script:user -Permission Read -Path $containerPath
+        ThenPermission -On $containerPath -For $script:user -Is ([FileSystemRights]::Read)
+        Invoke-GrantPermissions -Identity $script:user -Permission Read -Path $containerPath -Clear
+        ThenPermission -On $containerPath -For $script:user -Is ([FileSystemRights]::Read)
 
         $Global:Error | Should -BeNullOrEmpty
     }
 
     It 'when clearing permissions that already exist on a registry key' {
-        $Global:Error.Clear()
         $regContainerPath = New-TestContainer -Registry
-        Invoke-GrantPermissions -Identity $user -Permission QueryValues -Path $regContainerPath -ProviderName 'Registry'
-        Invoke-GrantPermissions -Identity $user `
+        Invoke-GrantPermissions -Identity $script:user -Permission ReadKey -Path $regContainerPath -ProviderName 'Registry'
+        ThenPermission -On $regContainerPath -For $script:user -Is ([RegistryRights]::ReadKey)
+        Invoke-GrantPermissions -Identity $script:user `
                                 -Permission QueryValues `
                                 -Path $regContainerPath `
                                 -ProviderName 'Registry' `
                                 -Clear
+        ThenPermission -On $regContainerPath -For $script:user -Is ([RegistryRights]::QueryValues)
 
         $Global:Error | Should -BeNullOrEmpty
     }
@@ -431,66 +439,85 @@ Describe 'Grant-CPermission' {
         try
         {
             $certPath = Join-Path -Path ('cert:\{0}\My' -f $location) -ChildPath $cert.Thumbprint
-            $expectedProviderName = 'CryptoKey'
-            $readPermission = 'GenericRead'
-            $writePermission = 'GenericWrite'
-            $expectedPerm = 'GenericAll'
 
             # CryptoKey does not exist in .NET standard/core so we will have to use FileSystem instead
-            if( -not (Invoke-TestCCryptoKeyAvailable) )
+            if ((Invoke-TestCCryptoKeyAvailable))
+            {
+                $expectedProviderName = 'CryptoKey'
+                $readPermission = 'GenericRead'
+                $readRights = [CryptoKeyRights]::GenericRead,[CryptoKeyRights]::Synchronize
+                $readRightsForDeny = [CryptoKeyRights]::GenericRead
+                $writePermission = 'GenericWrite'
+                # $expectedPerm = 'GenericAll'
+                $writeRights = [CryptoKeyRights]::GenericAll,[CryptoKeyRights]::GenericRead,[CryptoKeyRights]::Synchronize
+            }
+            else
             {
                 $expectedProviderName = 'FileSystem'
                 $readPermission = 'Read'
+                $readRights = [FileSystemRights]::Read
+                $readRightsForDeny = [FileSystemRights]::Read
                 $writePermission = 'Write'
-                $expectedPerm = $writePermission
+                $writeRights = [FileSystemRights]::Write
             }
 
             $cert | Should -Not -BeNullOrEmpty
 
             # Context 'adds permissions' {
             Invoke-GrantPermissions -Path $certPath `
-                                    -Identity $user `
+                                    -Identity $script:user `
                                     -Permission $writePermission `
                                     -ProviderName $expectedProviderName `
-                                    -ExpectedPermission $expectedPerm
+                                    -ExpectedPermission $writeRights
+            ThenPermission -On $certPath -For $script:user -Is $writeRights
 
             # Context 'changes permissions' {
             Invoke-GrantPermissions -Path $certPath `
-                                    -Identity $user `
+                                    -Identity $script:user `
                                     -Permission $readPermission `
-                                    -ProviderName $expectedProviderName
+                                    -ProviderName $expectedProviderName `
+                                    -ExpectedPermission $readRights
+            ThenPermission -On $certPath -For $script:user -Is $readRights
 
             # Context 'clearing others'' permissions' {
             Invoke-GrantPermissions -Path $certPath `
-                                    -Identity $user2 `
+                                    -Identity $script:user2 `
                                     -Permission $readPermission `
                                     -ProviderName $expectedProviderName `
+                                    -ExpectedPermission $readRights `
                                     -Clear
-            Test-CPermission -Path $certPath -Identity $user -Permission $readPermission | Should -BeFalse
+            ThenPermission -On $certPath -For $script:user2 -Is $readRights
+            Test-CPermission -Path $certPath -Identity $script:user -Permission $readPermission | Should -BeFalse
 
             # Context 'clearing others'' permissions when permissions getting set haven''t changed' {
             Invoke-GrantPermissions -Path $certPath `
-                                    -Identity $user `
-                                    -Permission $readPermission `
-                                    -ProviderName $expectedProviderName
-            Invoke-GrantPermissions -Path $certPath `
-                                    -Identity $user2 `
+                                    -Identity $script:user `
                                     -Permission $readPermission `
                                     -ProviderName $expectedProviderName `
+                                    -ExpectedPermission $readRights
+            ThenPermission -On $certPath -For $script:user -Is $readRights
+            Invoke-GrantPermissions -Path $certPath `
+                                    -Identity $script:user2 `
+                                    -Permission $readPermission `
+                                    -ProviderName $expectedProviderName `
+                                    -ExpectedPermission $readRights `
                                     -Clear
-            Test-CPermission -Path $certPath -Identity $user -Permission $readPermission | Should -BeFalse
+            ThenPermission -On $certPath -For $script:user2 -Is $readRights
+            Test-CPermission -Path $certPath -Identity $script:user -Permission $readPermission | Should -BeFalse
 
             # Context 'running with -WhatIf switch' {
-            Grant-CPermission -Path $certPath -Identity $user2 -Permission $writePermission -WhatIf
-            Test-CPermission -Path $certPath -Identity $user2 -Permission $readPermission -Exact | Should -BeTrue
-            Test-CPermission -Path $certPath -Identity $user2 -Permission $writePermission -Exact | Should -BeFalse
+            Grant-CPermission -Path $certPath -Identity $script:user2 -Permission $writePermission -WhatIf
+            Test-CPermission -Path $certPath -Identity $script:user2 -Permission $readPermission -Exact | Should -BeTrue
+            Test-CPermission -Path $certPath -Identity $script:user2 -Permission $writePermission -Exact | Should -BeFalse
 
             # Context 'creating a deny rule' {
             Invoke-GrantPermissions -Path $certPath `
-                                    -Identity $user `
+                                    -Identity $script:user `
                                     -Permission $readPermission `
                                     -Type 'Deny' `
-                                    -ProviderName $expectedProviderName
+                                    -ProviderName $expectedProviderName `
+                                    -ExpectedPermission $readRightsForDeny
+            ThenPermission -On $certPath -For $script:user -Is $readRightsForDeny -OfType Deny
 
             # CryptoKey does not exist in .NET standard/core
             if( (Invoke-TestCCryptoKeyAvailable) )
@@ -499,11 +526,11 @@ Describe 'Grant-CPermission' {
 
                 # Context 'permissions exist' {
                 # Now, check that permissions don't get re-applied.
-                Grant-CPermission -Path $certPath -Identity $user2 -Permission $readPermission
+                Grant-CPermission -Path $certPath -Identity $script:user2 -Permission $readPermission
                 Should -Invoke 'Set-CCryptoKeySecurity' -ModuleName 'Carbon.Permissions' -Times 0
 
                 # Context 'permissions exist but forcing the change' {
-                Grant-CPermission -Path $certPath -Identity $user2 -Permission $readPermission -Force
+                Grant-CPermission -Path $certPath -Identity $script:user2 -Permission $readPermission -Force
                 Should -Invoke 'Set-CCryptoKeySecurity' -ModuleName 'Carbon.Permissions' -Times 1 -Exactly
             }
         }
@@ -516,6 +543,8 @@ Describe 'Grant-CPermission' {
     It 'grants permissions to cng key' {
         $certPath = Join-Path -Path $PSScriptRoot -ChildPath 'Certificates\CarbonRsaCng.pfx' -Resolve
         $cert = Install-CCertificate -Path $certPath -StoreLocation CurrentUser -StoreName My -PassThru
+        $expectedRights = [FileSystemRights]::Write
+
         try
         {
             $certPath = Join-Path -Path 'cert:\CurrentUser\My' -ChildPath $cert.Thumbprint
@@ -523,10 +552,11 @@ Describe 'Grant-CPermission' {
             $cert | Should -Not -BeNullOrEmpty
 
             Invoke-GrantPermissions -Path $certPath `
-                                    -Identity $user `
+                                    -Identity $script:user `
                                     -Permission 'GenericWrite' `
                                     -ProviderName 'FileSystem' `
-                                    -ExpectedPermission 'Write'
+                                    -ExpectedPermission $expectedRights
+            ThenPermission -On $certPath -For $script:user -Is $expectedRights
         }
         finally
         {
@@ -536,19 +566,21 @@ Describe 'Grant-CPermission' {
 
     It 'when setting Deny rule on file system' {
         $filePath = New-TestFile
-        Invoke-GrantPermissions -Identity $user -Permissions 'Write' -Path $filePath -Type 'Deny'
+        Invoke-GrantPermissions -Identity $script:user -Permissions 'Write' -Path $filePath -Type 'Deny'
+        ThenPermission -On $filePath -For $script:user -Is ([FileSystemRights]::Write) -OfType Deny
     }
 
     It 'when setting Deny rule on registry' {
         $path = New-TestContainer -Registry
-        Invoke-GrantPermissions -Identity $user -Permissions 'Write' -Path $path -Type 'Deny' -ProviderName 'Registry'
+        Invoke-GrantPermissions -Identity $script:user -Permissions 'Write' -Path $path -Type 'Deny' -ProviderName 'Registry'
+        ThenPermission -On $path -For $script:user -Is ([RegistryRights]::WriteKey) -OfType Deny
     }
 
     It 'when granting multiple different rules to a user on the file system' {
         $dirPath = New-TestContainer -FileSystem
-        Grant-CPermission -Path $dirPath -Identity $user -Permission 'Read' -ApplyTo ContainerAndSubContainersAndLeaves -Append
-        Grant-CPermission -Path $dirPath -Identity $user -Permission 'Write' -ApplyTo ContainerAndLeaves -Append
-        $perm = Get-CPermission -Path $dirPath -Identity $user
-            $perm | Should -HaveCount 2
+        Grant-CPermission -Path $dirPath -Identity $script:user -Permission 'Read' -Append
+        Grant-CPermission -Path $dirPath -Identity $script:user -Permission 'Write' -InheritanceFlag ObjectInherit -PropagationFlag None -Append
+        $perm = Get-CPermission -Path $dirPath -Identity $script:user
+        $perm | Should -HaveCount 2
     }
 }

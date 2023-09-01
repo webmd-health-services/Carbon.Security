@@ -34,26 +34,24 @@ function Get-CPermission
     container.
 
     .DESCRIPTION
-    Permissions for a specific identity can also be returned.  Access control entries are for a path's discretionary
-    access control list.
+    The `Get-CPermission` function gets the permissions, as access control rule objects, for a file, directory, registry
+    key, or a certificate's private key/key container. Using this function and module are not recommended. Instead,
 
-    To return inherited permissions, use the `Inherited` switch.  Otherwise, only non-inherited (i.e. explicit)
-    permissions are returned.
+    * for file directory permissions, use `Get-CNtfsPermission` in the `Carbon.FileSystem` module.
+    * for registry permissions, use `Get-CRegistryPermission` in the `Carbon.Registry` module.
+    * for private key and/or key container permissions, use `Get-CPrivateKeyPermission` in the `Carbon.Cryptography`
+      module.
+
+    Pass the path to the `Path` parameter. By default, all non-inherited permissions on that item are returned. To
+    return inherited permissions, use the `Inherited` switch.
+
+    To return the permissions for a specific identity, pass the identity's name to the `Identity` parameter.
 
     Certificate permissions are only returned if a certificate has a private key/key container. If a certificate doesn't
     have a private key, `$null` is returned.
 
     .OUTPUTS
     System.Security.AccessControl.AccessRule.
-
-    .LINK
-    Carbon_Permission
-
-    .LINK
-    Disable-CAclInheritance
-
-    .LINK
-    Enable-CAclInheritance
 
     .LINK
     Get-CPermission
@@ -96,7 +94,7 @@ function Get-CPermission
     [OutputType([System.Security.AccessControl.AccessRule])]
     param(
         # The path whose permissions (i.e. access control rules) to return. File system, registry, or certificate paths
-        # supported. Wildcards supported.
+        # supported. Wildcards supported. For certificate private keys, pass a certificate provider path, e.g. `cert:`.
         [Parameter(Mandatory)]
         [String] $Path,
 
@@ -108,7 +106,6 @@ function Get-CPermission
     )
 
     Set-StrictMode -Version 'Latest'
-
     Use-CallerPreference -Cmdlet $PSCmdlet -Session $ExecutionContext.SessionState
 
     $account = $null

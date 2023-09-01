@@ -4,17 +4,24 @@
 
 ### Upgrade Instructions
 
-Remove usages of the following functions and aliases. They are no longer exported:
+Replaces usages of the `Grant-CPermission` and `Test-CPermission` functions' `ApplyTo` parameters with the new
+`InheritanceFlag` and `PropagationFlag` parameters. Here's a mapping:
 
-* `ConvertTo-CContainerInheritanceFlags`
-* `ConvertTo-CInheritanceFlag`
-* `ConvertTo-InheritanceFlags`
-* `ConvertTo-CPropagationFlag`
-* `ConvertTo-PropagationFlags`
-
-Replace usages of the `Carbon.Security.ContainerInheritanceFlags` with `[Carbon_Permissions_ContainerInheritanceFlags]`.
-Since this is a built-in PowerShell enum, you may need to add `using module Carbon.Permissions` to your scripts. We
-recommend not explicitly using this type in your code.
+Old ApplyTo Value                           | InheritanceFlag                  | PropagationFlag
+------------------------------------------- | -------------------------------- | -------------------------------
+Container                                   | None                             | None
+SubContainers                               | ContainerInherit                 | InheritOnly
+Leaves                                      | ObjectInherit                    | InheritOnly
+ChildContainers                             | ContainerInherit                 | InheritOnly, NoPropagateInherit
+ChildLeaves                                 | ObjectInherit                    | InheritOnly
+ContainerAndSubContainers                   | ContainerInherit                 | None
+ContainerAndLeaves                          | ObjectInherit                    | None
+SubContainerAndLeaves                       | ContainerInherit,ObjectInherit   | InheritOnly
+ContainerAndChildContainers                 | ContainerInherit                 | None
+ContainerAndChildLeaves                     | ObjectInherit                    | None
+ContainerAndChildContainersAndChildLeaves   | ContainerInherit,ObjectInherit   | NoPropagateInherit
+ContainerAndSubContainersAndLeaves          | ContainerInherit,ObjectInherit   | None
+ChildContainersAndChildLeaves               | ContainerInherit,ObjectInherit   | InheritOnly
 
 Replace usages of `Get-Permissions` with `Get-CPermission`.
 
@@ -27,18 +34,9 @@ Replace usages of `Grant-Permissions` with `Grant-CPermission`.
 * Function `Revoke-CPermission`, migrated from Carbon.
 * Function `Test-CPermission`, migrated from Carbon.
 
-### Changed
-
-* The type of the `Grant-CPermission` function's `ApplyTo` parameter is now a built-in PowerShell enum,
-`Carbon_Permissions_ContainerInheritanceFlags` instead of the compiled
-`Carbon.Security.ContainerInheritanceFlags`.
-
 ### Removed
 
+* The `ApplyTo` function on `Grant-CPermission` and `Test-CPermission`. Use the new `InheritanceFlag` and
+`PropagationFlag` parameters to set a permission's inheritance and propagation flags.
 * Alias `Get-Permissions`. Use `Get-CPermission` instead.
 * Alias `Grant-Permissions`. Use `Grant-CPermission` instead.
-* Alias `ConvertTo-InheritanceFlags`.
-* Command `ConvertTo-CContainerInheritanceFlags`.
-* Command `ConvertTo-CInheritanceFlag`.
-* Alias `ConvertTo-PropagationFlags`.
-* Command `ConvertTo-CPropagationFlag`.
