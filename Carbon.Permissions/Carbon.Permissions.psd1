@@ -18,7 +18,7 @@
     RootModule = 'Carbon.Permissions.psm1'
 
     # Version number of this module.
-    ModuleVersion = '0.0.0'
+    ModuleVersion = '1.0.0'
 
     # ID used to uniquely identify this module
     GUID = 'd957c669-307c-409a-bb28-83fb666b5c6f'
