@@ -3,12 +3,12 @@ function Get-CPermission
 {
     <#
     .SYNOPSIS
-    Gets the permissions (access control rules) for a file, directory, registry key, or certificate's private key/key
+    Gets the permissions (access control rules) for a file, directory, registry key, or certificate private key/key
     container.
 
     .DESCRIPTION
     The `Get-CPermission` function gets the permissions, as access control rule objects, for a file, directory, registry
-    key, or a certificate's private key/key container. Using this function and module are not recommended. Instead,
+    key, or a certificate private key/key container. Using this function and module are not recommended. Instead,
 
     * for file directory permissions, use `Get-CNtfsPermission` in the `Carbon.FileSystem` module.
     * for registry permissions, use `Get-CRegistryPermission` in the `Carbon.Registry` module.

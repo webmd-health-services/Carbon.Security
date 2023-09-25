@@ -3,21 +3,21 @@ function Revoke-CPermission
 {
     <#
     .SYNOPSIS
-    Revokes *explicit* (i.e. non-inherited) permissions on a file, directory, registry key, or certificate's private
-    key/key container.
+    Revokes permissions on a file, directory, registry key, or certificate private key/key container.
 
     .DESCRIPTION
-    The `Revoke-CPermission` function removes a user or group's permissions on a file, directory, registry key, or
-    certificate's private key/key container. Using this function and module are not recommended. Instead,
+    The `Revoke-CPermission` function removes a user or group's *explicit, non-inherited* permissions on a file,
+    directory, registry key, or certificate private key/key container. Using this function and module are not
+    recommended. Instead,
 
     * for file directory permissions, use `Revoke-CNtfsPermission` in the `Carbon.FileSystem` module.
     * for registry permissions, use `Revoke-CRegistryPermission` in the `Carbon.Registry` module.
     * for private key and/or key container permissions, use `Revoke-CPrivateKeyPermission` in the `Carbon.Cryptography`
       module.
 
-    Pass the path to the item to the `Path` parameter. Pass the user/group's
-    name to the `Identity` parameter. If the identity has any non-inherited permissions on the item, those permissions
-    are removed. If the identity has no permissions on the item, nothing happens.
+    Pass the path to the item to the `Path` parameter. Pass the user/group's name to the `Identity` parameter. If the
+    identity has any non-inherited permissions on the item, those permissions are removed. If the identity has no
+    permissions on the item, nothing happens.
 
     .LINK
     Get-CPermission

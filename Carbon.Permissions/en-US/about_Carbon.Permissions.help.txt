@@ -2,7 +2,37 @@ TOPIC
     about_Carbon.Permissions
 
 SHORT DESCRIPTION
-    Carbon.Permissions is a PowerShell module for...
+    The "Carbon.Permissions" module manages permissions on files, directories, registry keys, and certificate private
+    keys/key containers.
 
 LONG DESCRIPTION
-    The Carbon.Permissions PowerShell module...
+    SYSTEM REQUIREMENTS
+
+    * Windows PowerShell 5.1 and .NET 4.6.1+
+    * PowerShell 7+
+
+
+    INSTALLING
+
+    To install globally:
+
+        Install-Module -Name 'Carbon.Permissions'
+        Import-Module -Name 'Carbon.Permissions'
+
+    To install privately:
+
+        Save-Module -Name 'Carbon.Permissions' -Path '.'
+        Import-Module -Name '.\Carbon.Permissions'
+
+
+    COMMANDS
+
+    * `Get-CAcl`: Gets the access control (i.e. security descriptor) for a file, directory, or registry key.
+    * `Get-CPermission`: Gets the permissions (access control rules) for a file, directory, registry key, or certificate
+      private key/key container.
+    * `Grant-CPermission`: Grants permissions on a file, directory, registry key, or certificate private key/key
+      container.
+    * `Revoke-CPermission`: Revokes permissions on a file, directory, registry key, or certificate private key/key
+      container.
+    * `Test-CPermission`: Tests permissions on a file, directory, registry key, or certificate private key/key
+      container.

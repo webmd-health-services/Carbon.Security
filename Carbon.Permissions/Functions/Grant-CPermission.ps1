@@ -2,7 +2,7 @@
 {
     <#
     .SYNOPSIS
-    Grants permission on a file, directory, registry key, or certificate's private key/key container.
+    Grants permissions on a file, directory, registry key, or certificate private key/key container.
 
     .DESCRIPTION
     The `Grant-CPermission` function grants permissions to files, directories, registry keys, and certificate private

@@ -3,11 +3,11 @@ function Test-CPermission
 {
     <#
     .SYNOPSIS
-    Tests if permissions are set on a file, directory, registry key, or certificate's private key/key container.
+    Tests permissions on a file, directory, registry key, or certificate private key/key container.
 
     .DESCRIPTION
     The `Test-CPermission` function tests if permissions are granted to a user or group on a file, directory, registry
-    key, or certificate's private key/key container. Using this function and module are not recommended. Instead,
+    key, or certificate private key/key container. Using this function and module are not recommended. Instead,
 
     * for file directory permissions, use `Test-CNtfsPermission` in the `Carbon.FileSystem` module.
     * for registry permissions, use `Test-CRegistryPermission` in the `Carbon.Registry` module.

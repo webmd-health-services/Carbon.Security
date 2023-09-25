@@ -3,10 +3,10 @@ function Resolve-CPrivateKeyPath
 {
     <#
     .SYNOPSIS
-    Finds the path to a certificate's private key.
+    Finds the path to a certificate private key.
 
     .DESCRIPTION
-    The `Resolve-CPrivateKeyPath` function finds the path to a certificate's private key. Pipe the certificate object to
+    The `Resolve-CPrivateKeyPath` function finds the path to a certificate private key. Pipe the certificate object to
     the function (or pass one or more to the `Certificate` parameter). The function searches all the directories where
     keys are stored, [which are documented by
     Microsoft](https://learn.microsoft.com/en-us/windows/win32/seccng/key-storage-and-retrieval).
