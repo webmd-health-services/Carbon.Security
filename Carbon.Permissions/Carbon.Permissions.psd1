@@ -15,13 +15,13 @@
 @{
 
     # Script module or binary module file associated with this manifest.
-    RootModule = 'MODULE_NAME.psm1'
+    RootModule = 'Carbon.Permissions.psm1'
 
     # Version number of this module.
-    ModuleVersion = '0.0.0'
+    ModuleVersion = '1.0.0'
 
     # ID used to uniquely identify this module
-    GUID = 'MODULE_GUID'
+    GUID = 'd957c669-307c-409a-bb28-83fb666b5c6f'
 
     # Author of this module
     Author = 'WebMD Health Services'
@@ -36,7 +36,7 @@
     Copyright = '(c) WebMD Health Services.'
 
     # Description of the functionality provided by this module
-    Description = ''
+    Description = 'Managing file system, registry, and private key permissions.'
 
     # Minimum version of the Windows PowerShell engine required by this module
     PowerShellVersion = '5.1'
@@ -76,6 +76,11 @@
 
     # Functions to export from this module. Only list public function here.
     FunctionsToExport = @(
+        'Get-CAcl',
+        'Get-CPermission',
+        'Grant-CPermission',
+        'Revoke-CPermission',
+        'Test-CPermission'
     )
 
     # Cmdlets to export from this module. By default, you get a script module, so there are no cmdlets.
@@ -102,13 +107,17 @@
         PSData = @{
 
             # Tags applied to this module. These help with module discovery in online galleries.
-            Tags = @( 'Desktop', 'Core' )
+            Tags = @(
+                'Desktop', 'Core', 'permission', 'accesscontrol', 'access', 'control', 'securitydescriptor',
+                'security', 'descriptor', 'acl', 'file', 'directory', 'registry', 'acl', 'icacls', 'certificate',
+                'crypto', 'key', 'cryptokey', 'cryptokeysecrurity', 'private', 'cng', 'privatekey', 'grant', 'revoke'
+            )
 
             # A URL to the license for this module.
             LicenseUri = 'http://www.apache.org/licenses/LICENSE-2.0'
 
             # A URL to the main website for this project.
-            ProjectUri = 'https://github.com/webmd-health-services/MODULE_NAME'
+            ProjectUri = 'https://github.com/webmd-health-services/Carbon.Permissions'
 
             # A URL to an icon representing this module.
             # IconUri = ''
@@ -116,7 +125,7 @@
             Prerelease = ''
 
             # ReleaseNotes of this module
-            ReleaseNotes = 'https://github.com/GITHUB_ORGANIZATION_NAME/MODULE_NAME/blob/main/CHANGELOG.md'
+            ReleaseNotes = 'https://github.com/webmd-health-services/Carbon.Permissions/blob/main/CHANGELOG.md'
         } # End of PSData hashtable
 
     } # End of PrivateData hashtable

@@ -1,36 +1,41 @@
+<!-- markdownlint-disable MD012 no-multiple-blanks -->
+# Carbon.Permissions PowerShell Module
 
-# Template-PSModules-OSS-Apache2.0-AppVeyor
 
-## Using This Template
+## Overview
 
-Click the "Use this template" button above. Clone the new repository. Run the `.\Initialize-Repository.ps1` script.
-Pass the name of the module to the `ModuleName` parameter, the module's description to the `ModuleDescription`
-parameter, and your GitHub organization URL slug to the `GitHubOrganizationName` parameter.
+The "Carbon.Permissions" module manages permissions on files, directories, registry keys, and certificate private
+keys/key containers.
 
-The script will:
 
-* Rename this file to TODO.md (there are additional steps to take afterward)
-* Puts the default README.md file in place.
-* Rename every file that has `MODULE_NAME` in its name, replacing `MODULE_NAME` with the module name.
-* Replaces `MODULE_NAME` in every file with the module name.
-* Installs and enables [Whiskey](https://github.com/webmd-health-services/Whiskey/wiki).
-* Removes this script.
-* If Git is installed, adds all the changes, and amends the initial commit with them so all traces of the template are
-  removed.
+## System Requirements
 
-## Manual Steps
+* Windows PowerShell 5.1 and .NET 4.6.1+
+* PowerShell 7+
 
-Things you'll still need to do after creating your repository:
 
-* Turn on branch protections.
-* Create a build in AppVeyor.
-* Create a feature branch.
-* Commit and push your new branch. A build should run in AppVeyor and finish successfully after a minute or so. The
-default build will run using:
-  * Windows PowerShell 5.1/.NET 4.6.2
-  * Windows PowerShell 5.1/.NET 4.8
-  * PowerShell 6.2 on Windows
-  * PowerShell 7.1 on Windows
-  * PowerShell 7.2 on Windows
-  * PowerShell 7.1 on macOS
-  * PowerShell 7.2 on Ubuntu
+## Installing
+
+To install globally:
+
+```powershell
+Install-Module -Name 'Carbon.Permissions'
+Import-Module -Name 'Carbon.Permissions'
+```
+
+To install privately:
+
+```powershell
+Save-Module -Name 'Carbon.Permissions' -Path '.'
+Import-Module -Name '.\Carbon.Permissions'
+```
+
+## Commands
+
+* `Get-CAcl`: Gets the access control (i.e. security descriptor) for a file, directory, or registry key.
+* `Get-CPermission`: Gets the permissions (access control rules) for a file, directory, registry key, or certificate
+  private key/key container.
+* `Grant-CPermission`: Grants permissions on a file, directory, registry key, or certificate private key/key container.
+* `Revoke-CPermission`: Revokes permissions on a file, directory, registry key, or certificate private key/key
+  container.
+* `Test-CPermission`: Tests permissions on a file, directory, registry key, or certificate private key/key container.

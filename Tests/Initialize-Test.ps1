@@ -13,7 +13,7 @@ Execute this script as the first thing in each of your test fixtures:
 
     #Requires -Version 5.1
     Set-StrictMode -Version 'Latest'
-    
+
     & (Join-Path -Path $PSScriptRoot -ChildPath 'Initialize-Test.ps1' -Resolve)
 #>
 [CmdletBinding()]
@@ -28,9 +28,11 @@ $Global:WhatIfPreference = $WhatIfPreference = $false
 
 try
 {
+    Remove-Module -Name 'Carbon' -Force -ErrorAction Ignore
+
     $modules = [ordered]@{
-        'MODULE_NAME' = '..\MODULE_NAME';
-        'MODULE_NAMETestHelper' = 'MODULE_NAMETestHelper';
+        'Carbon.Permissions' = '..\Carbon.Permissions';
+        'Carbon.PermissionsTestHelper' = 'Carbon.PermissionsTestHelper';
     }
     foreach( $moduleName in $modules.Keys )
     {
@@ -49,7 +51,7 @@ try
         }
 
         Write-Verbose -Message ('Importing module "{0}" from "{1}".' -f $moduleName,$modulePath)
-        Import-Module -Name $modulePath
+        Import-Module -Name $modulePath -Global -Verbose:$false
     }
 }
 finally
@@ -57,4 +59,3 @@ finally
     $Global:VerbosePreference = $originalVerbosePref
     $Global:WhatIfPreference = $originalWhatIfPref
 }
-

@@ -4,8 +4,13 @@ Build:
     ExceptDuring: Clean
     ScriptBlock: prism install | Format-Table -Auto
 
+- PowerShell:
+    ExceptDuring: Clean
+    WorkingDirectory: Carbon.Permissions
+    ScriptBlock: prism install | Format-Table -Auto
+
 - Version:
-    Path: MODULE_NAME\MODULE_NAME.psd1
+    Path: Carbon.Permissions\Carbon.Permissions.psd1
     Prerelease:
     - main: ""
     - "*": rc1
@@ -21,10 +26,10 @@ Build:
 - MergeFile:
     OnlyBy: BuildServer
     # Builds run twice on some serves. Only run this step if the module hasn't been merged yet.
-    IfExists: MODULE_NAME\Functions\*.ps1
+    IfExists: Carbon.Permissions\Functions\*.ps1
     Path:
-    - MODULE_NAME\Functions\*.ps1
-    DestinationPath: MODULE_NAME\MODULE_NAME.psm1
+    - Carbon.Permissions\Functions\*.ps1
+    DestinationPath: Carbon.Permissions\Carbon.Permissions.psm1
     DeleteSourceFiles: true
     TextSeparator: "$(NewLine)$(NewLine)"
 
@@ -42,12 +47,12 @@ Build:
     - README.md
     - LICENSE.txt
     - NOTICE.txt
-    DestinationDirectory: MODULE_NAME
+    DestinationDirectory: Carbon.Permissions
 
 - Zip:
-    ArchivePath: .output\MODULE_NAME-$(WHISKEY_SEMVER2).zip
+    ArchivePath: .output\Carbon.Permissions-$(WHISKEY_SEMVER2).zip
     Path:
-    - MODULE_NAME
+    - Carbon.Permissions
     Exclude:
     - "*.pdb"
     - "*.orig"
@@ -55,7 +60,20 @@ Build:
 - Exec:
     OnlyBy: BuildServer
     Path: appveyor
-    Argument: [ 'PushArtifact', '.output/MODULE_NAME-$(WHISKEY_SEMVER2).zip', '-DeploymentName', 'GitHub' ]
+    Argument: [ 'PushArtifact', '.output/Carbon.Permissions-$(WHISKEY_SEMVER2).zip', '-DeploymentName', 'GitHub' ]
+
+- PublishPowerShellModule:
+    Path: Carbon.Permissions
+
+- Exec:
+    OnlyBy: BuildServer
+    Path: appveyor
+    Argument: [
+        'PushArtifact',
+        '.output/Carbon.Permissions.$(WHISKEY_SEMVER2_NO_BUILD_METADATA).nupkg',
+        '-DeploymentName',
+        'PowerShellGallery'
+    ]
 
 - Pester:
     Configuration:
@@ -66,19 +84,6 @@ Build:
         TestResult:
             Enabled: true
             OutputPath: .output\pester.xml
-            TestSuiteName: MODULE_NAME
+            TestSuiteName: Carbon.Permissions
         Output:
             Verbosity: Detailed
-
-- PublishPowerShellModule:
-    Path: MODULE_NAME
-
-- Exec:
-    OnlyBy: BuildServer
-    Path: appveyor
-    Argument: [
-        'PushArtifact',
-        '.output/MODULE_NAME.$(WHISKEY_SEMVER2_NO_BUILD_METADATA).nupkg',
-        '-DeploymentName',
-        'PowerShellGallery'
-    ]
