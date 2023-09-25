@@ -125,7 +125,7 @@
             Prerelease = ''
 
             # ReleaseNotes of this module
-            ReleaseNotes = 'https://github.com/webm-health-services/Carbon.Permissions/blob/main/CHANGELOG.md'
+            ReleaseNotes = 'https://github.com/webmd-health-services/Carbon.Permissions/blob/main/CHANGELOG.md'
         } # End of PSData hashtable
 
     } # End of PrivateData hashtable
