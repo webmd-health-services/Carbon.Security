@@ -12,14 +12,17 @@ BeforeAll {
     $psModulesSharedPath = Join-Path -Path $PSScriptRoot -ChildPath '..\Carbon.Permissions\Modules' -Resolve
     Import-Module -Name (Join-Path -Path $psModulesSharedPath -ChildPath 'Carbon.Core' -Resolve) `
                   -Function ('Get-CPathProvider') `
-                  -Global
+                  -Global `
+                  -Verbose:$false
     Import-Module -Name (Join-Path -Path $psModulesSharedPath -ChildPath 'Carbon.Accounts' -Resolve) `
                   -Function ('Resolve-CIdentityName') `
-                  -Global
+                  -Global `
+                  -Verbose:$false
     $psModulesPath = Join-Path -Path $PSScriptRoot -ChildPath '..\PSModules' -Resolve
     Import-Module -Name (Join-Path -Path $psModulesPath -ChildPath 'Carbon.Cryptography' -Resolve) `
                   -Function ('Install-CCertificate', 'Uninstall-CCertificate') `
-                  -Global
+                  -Global `
+                  -Verbose:$false
 
     $script:testDirPath = $null
     $script:testNum = 0

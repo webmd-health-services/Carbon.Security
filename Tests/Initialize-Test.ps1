@@ -51,7 +51,7 @@ try
         }
 
         Write-Verbose -Message ('Importing module "{0}" from "{1}".' -f $moduleName,$modulePath)
-        Import-Module -Name $modulePath -Global
+        Import-Module -Name $modulePath -Global -Verbose:$false
     }
 }
 finally

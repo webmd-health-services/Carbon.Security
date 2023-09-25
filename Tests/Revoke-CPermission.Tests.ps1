@@ -10,7 +10,8 @@ BeforeAll {
     $psModulesPath = Join-Path -Path $PSScriptRoot -ChildPath '..\PSModules' -Resolve
     Import-Module -Name (Join-Path -Path $psModulesPath -ChildPath 'Carbon.Cryptography' -Resolve) `
                   -Function ('Install-CCertificate', 'Uninstall-CCertificate') `
-                  -Global
+                  -Global `
+                  -Verbose:$false
 
     $script:testDirPath = ''
     $script:testNum = 0

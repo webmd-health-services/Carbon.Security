@@ -9,7 +9,7 @@ BeforeAll {
 }
 
 Describe 'ConvertTo-CProviderAccessControlRights' {
-    Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath '..\Carbon.Permissions' -Resolve)
+    Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath '..\Carbon.Permissions' -Resolve) -Verbose:$false
     InModuleScope 'Carbon.Permissions' {
         It 'should convert file system value' {
             (ConvertTo-CProviderAccessControlRights -ProviderName 'FileSystem' -InputObject 'Read') | Should -Be ([Security.AccessControl.FileSystemRights]::Read)

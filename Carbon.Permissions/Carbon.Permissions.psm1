@@ -26,9 +26,11 @@ $moduleRoot = $PSScriptRoot
 
 $psModulesRoot = Join-Path -Path $PSScriptRoot -ChildPath 'Modules' -Resolve
 Import-Module -Name (Join-Path -Path $psModulesRoot -ChildPath 'Carbon.Core') `
-              -Function @('Get-CPathProvider')
+              -Function @('Get-CPathProvider') `
+              -Verbose:$false
 Import-Module -Name (Join-Path -Path $psModulesRoot -ChildPath 'Carbon.Accounts') `
-              -Function @('Resolve-CIdentityName', 'Test-CIdentity')
+              -Function @('Resolve-CIdentityName', 'Test-CIdentity') `
+              -Verbose:$false
 
 if (-not (Test-Path -Path 'variable:IsWindows'))
 {
