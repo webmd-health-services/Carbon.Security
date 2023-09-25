@@ -1,4 +1,5 @@
 
+using namespace System.IO
 using namespace System.Security.AccessControl
 
 # Copyright WebMD Health Services
@@ -25,7 +26,7 @@ $moduleRoot = $PSScriptRoot
 
 $psModulesRoot = Join-Path -Path $PSScriptRoot -ChildPath 'Modules' -Resolve
 Import-Module -Name (Join-Path -Path $psModulesRoot -ChildPath 'Carbon.Core') `
-              -Function @('Add-CTypeData', 'Get-CPathProvider')
+              -Function @('Get-CPathProvider')
 Import-Module -Name (Join-Path -Path $psModulesRoot -ChildPath 'Carbon.Accounts') `
               -Function @('Resolve-CPrincipalName', 'Test-CPrincipal')
 

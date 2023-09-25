@@ -33,6 +33,8 @@ Replace usages of `Grant-Permissions` with `Grant-CPermission`.
 * Function `Grant-CPermission`, migrated from Carbon.
 * Function `Revoke-CPermission`, migrated from Carbon.
 * Function `Test-CPermission`, migrated from Carbon.
+* Function `Get-CAcl` to get the access control (i.e. security descriptor) for a registry key, file, or directory.
+Supports getting only specific sections/parts of the security descriptor, too.
 
 ### Removed
 

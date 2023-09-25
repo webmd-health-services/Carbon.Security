@@ -324,7 +324,7 @@
     # passed to Set-Acl, this causes intermittent errors.  So, we just grab the ACL portion of the security
     # descriptor. See
     # http://www.bilalaslam.com/2010/12/14/powershell-workaround-for-the-security-identifier-is-not-allowed-to-be-the-owner-of-this-object-with-set-acl/
-    $currentAcl = (Get-Item -Path $Path -Force).GetAccessControl([Security.AccessControl.AccessControlSections]::Access)
+    $currentAcl = Get-Item -Path $Path -Force | Get-CAcl -IncludeSection ([AccessControlSections]::Access)
 
     $testPermissionParams = @{ }
     if (Test-Path $Path -PathType Container)
