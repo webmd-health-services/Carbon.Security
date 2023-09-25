@@ -35,7 +35,7 @@ Import-Module -Name (Join-Path -Path $psModulesRoot -ChildPath 'Carbon.Accounts'
 if (-not (Test-Path -Path 'variable:IsWindows'))
 {
     $IsWindows = $true
-    $IsMacOS = $IsLinux = $true
+    $IsMacOS = $IsLinux = $false
 }
 
 # Store each of your module's functions in its own file in the Functions
