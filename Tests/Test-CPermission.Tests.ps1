@@ -78,12 +78,12 @@ Describe 'Test-CPermission' {
         Test-CPermission @testDirPermArgs -Permission 'Read' | Should -BeTrue
     }
 
-    It 'should check exact partial permission on file system' {
-        Test-CPermission @testDirPermArgs -Permission 'Read' -Exact | Should -BeFalse
+    It 'should check strict partial permission on file system' {
+        Test-CPermission @testDirPermArgs -Permission 'Read' -Strict | Should -BeFalse
     }
 
-    It 'should check exact permission on file system' {
-        Test-CPermission @testDirPermArgs -Permission 'ReadAndExecute' -Exact | Should -BeTrue
+    It 'should check strict permission on file system' {
+        Test-CPermission @testDirPermArgs -Permission 'ReadAndExecute' -Strict | Should -BeTrue
     }
 
     It 'should exclude inherited permission' {
@@ -95,11 +95,11 @@ Describe 'Test-CPermission' {
     }
 
     It 'should exclude inherited partial permission' {
-        Test-CPermission @testFilePermArgs -Permission 'ReadAndExecute' -Exact | Should -BeFalse
+        Test-CPermission @testFilePermArgs -Permission 'ReadAndExecute' -Strict | Should -BeFalse
     }
 
-    It 'should include inherited exact permission' {
-        Test-CPermission @testFilePermArgs -Permission 'ReadAndExecute' -Inherited -Exact | Should -BeTrue
+    It 'should include inherited strict permission' {
+        Test-CPermission @testFilePermArgs -Permission 'ReadAndExecute' -Inherited -Strict | Should -BeTrue
     }
 
     It 'should ignore inheritance and propagation flags on file' {
@@ -124,12 +124,12 @@ Describe 'Test-CPermission' {
         Test-CPermission -Path $script:keyPath -Identity $script:identity -Permission 'ReadKey' | Should -BeTrue
     }
 
-    It 'should check exact partial permission on registry' {
-        Test-CPermission -Path $script:keyPath -Identity $script:identity -Permission 'ReadKey' -Exact | Should -BeFalse
+    It 'should check strict partial permission on registry' {
+        Test-CPermission -Path $script:keyPath -Identity $script:identity -Permission 'ReadKey' -Strict | Should -BeFalse
     }
 
-    It 'should check exact permission on registry' {
-        Test-CPermission -Path $script:keyPath -Identity $script:identity -Permission 'ReadKey','WriteKey' -Exact |
+    It 'should check strict permission on registry' {
+        Test-CPermission -Path $script:keyPath -Identity $script:identity -Permission 'ReadKey','WriteKey' -Strict |
             Should -BeTrue
     }
 
@@ -149,21 +149,21 @@ Describe 'Test-CPermission' {
     }
 
 
-    It 'should check exact ungranted inheritance flags' {
+    It 'should check strict ungranted inheritance flags' {
         Test-CPermission @testDirPermArgs `
                          -Permission 'ReadAndExecute' `
                          -InheritanceFlag ObjectInherit `
                          -PropagationFlag None `
-                         -Exact |
+                         -Strict |
             Should -BeFalse
     }
 
-    It 'should check exact granted inheritance flags' {
+    It 'should check strict granted inheritance flags' {
         Test-CPermission @testDirPermArgs `
                          -Permission 'ReadAndExecute' `
                          -InheritanceFlag ObjectInherit `
                          -PropagationFlag InheritOnly `
-                         -Exact |
+                         -Strict |
             Should -BeTrue
     }
 
@@ -182,9 +182,9 @@ Describe 'Test-CPermission' {
             }
             Grant-CPermission -Path $certPath -Identity $script:identity -Permission $allPerm
             Test-CPermission -Path $certPath -Identity $script:identity -Permission $readPerm | Should -BeTrue
-            Test-CPermission -Path $certPath -Identity $script:identity -Permission $readPerm -Exact |
+            Test-CPermission -Path $certPath -Identity $script:identity -Permission $readPerm -Strict |
                 Should -BeFalse
-            Test-CPermission -Path $certPath -Identity $script:identity -Permission $allPerm, $readPerm -Exact |
+            Test-CPermission -Path $certPath -Identity $script:identity -Permission $allPerm, $readPerm -Strict |
                 Should -BeTrue
         }
         finally
@@ -206,6 +206,6 @@ Describe 'Test-CPermission' {
         $certPath = Join-Path -Path 'cert:\' -ChildPath (Split-Path -NoQualifier -Path $cert.PSPath)
         Get-CPermission -path $certPath -Identity $script:identity | Out-String | Write-Host
         Test-CPermission -Path $certPath -Identity $script:identity -Permission 'FullControl' | Should -BeTrue
-        Test-CPermission -Path $certPath -Identity $script:identity -Permission 'FullControl' -Exact | Should -BeTrue
+        Test-CPermission -Path $certPath -Identity $script:identity -Permission 'FullControl' -Strict | Should -BeTrue
     }
 }

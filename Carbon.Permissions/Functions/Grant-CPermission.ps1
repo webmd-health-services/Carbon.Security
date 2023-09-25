@@ -296,7 +296,7 @@
 
             if ($Force -or `
                 $rulesToRemove -or `
-                -not (Test-CPermission -Path $certPath -Identity $Identity -Permission $Permission -Exact))
+                -not (Test-CPermission -Path $certPath -Identity $Identity -Permission $Permission -Strict))
             {
                 $currentPerm = Get-CPermission -Path $certPath -Identity $Identity
                 if ($currentPerm)
@@ -377,7 +377,7 @@
         Add-Member -MemberType NoteProperty -Name 'Path' -Value $Path -PassThru
 
     $missingPermission =
-        -not (Test-CPermission -Path $Path -Identity $Identity -Permission $Permission @testPermissionParams -Exact)
+        -not (Test-CPermission -Path $Path -Identity $Identity -Permission $Permission @testPermissionParams -Strict)
 
     $setAccessRule = ($Force -or $missingPermission)
     if( $setAccessRule )

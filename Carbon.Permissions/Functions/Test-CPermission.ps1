@@ -30,11 +30,11 @@ function Test-CPermission
         [Enum]::GetValues([Security.AccessControl.CryptoKeyRights])
 
     Extra/additional permissions on the item are ignored. To check that the user/group has the exact permissions passed
-    to the `Permission` parameter, use the `Exact` switch.
+    to the `Permission` parameter, use the `Strict` switch.
 
     You can also check that the item's inheritenche and propagation flags by using the InheritanceFlag and
      PropagationFlag parameters. Like the `Permissions` parameter, additional/extra flags are ignored. To ensure the
-     exact inheritance and propagation flags that are passed are also on the item, use the `Exact` switch.
+     exact inheritance and propagation flags that are passed are also on the item, use the `Strict` switch.
 
     By default, inherited permissions are ignored. To check inherited permission, use the `-Inherited` switch.
 
@@ -109,7 +109,7 @@ function Test-CPermission
 
         # Check for the exact permissions, inheritance flags, and propagation flags, i.e. make sure the identity has
         # *only* the permissions you specify.
-        [switch] $Exact
+        [switch] $Strict
     )
 
     Set-StrictMode -Version 'Latest'
@@ -138,7 +138,7 @@ function Test-CPermission
         }
     }
 
-    if( ($providerName -eq 'FileSystem' -or $providerName -eq 'CryptoKey') -and $Exact )
+    if (($providerName -eq 'FileSystem' -or $providerName -eq 'CryptoKey') -and $Strict)
     {
         # Synchronize is always on and can't be turned off.
         $Permission += 'Synchronize'
@@ -178,7 +178,7 @@ function Test-CPermission
         Where-Object 'AccessControlType' -eq 'Allow' |
         Where-Object 'IsInherited' -eq $Inherited |
         Where-Object {
-            if ($Exact)
+            if ($Strict)
             {
                 return ($_.$rightsPropertyName -eq $rights)
             }
@@ -196,7 +196,7 @@ function Test-CPermission
                 return $true
             }
 
-            if ($Exact)
+            if ($Strict)
             {
                 return ($_.InheritanceFlags -eq $InheritanceFlag)
             }
@@ -214,7 +214,7 @@ function Test-CPermission
                 return $true
             }
 
-            if ($Exact)
+            if ($Strict)
             {
                 return ($_.PropagationFlags -eq $PropagationFlag)
             }

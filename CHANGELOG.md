@@ -27,6 +27,8 @@ Replace usages of `Get-Permissions` with `Get-CPermission`.
 
 Replace usages of `Grant-Permissions` with `Grant-CPermission`.
 
+Rename usages of the `Get-CPermission` and `Test-CPermission` functions' `Exact` switch to `Strict`.
+
 ### Added
 
 * Function `Get-CPermission`, migrated from Carbon.
@@ -35,6 +37,10 @@ Replace usages of `Grant-Permissions` with `Grant-CPermission`.
 * Function `Test-CPermission`, migrated from Carbon.
 * Function `Get-CAcl` to get the access control (i.e. security descriptor) for a registry key, file, or directory.
 Supports getting only specific sections/parts of the security descriptor, too.
+
+### Changed
+
+* Switch `Exact` renamed to `Strict` on the `Get-CPermission` and `Test-CPermission` functions.
 
 ### Removed
 

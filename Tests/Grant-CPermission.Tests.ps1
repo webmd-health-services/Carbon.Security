@@ -507,8 +507,10 @@ Describe 'Grant-CPermission' {
 
             # Context 'running with -WhatIf switch' {
             Grant-CPermission -Path $certPath -Identity $script:user2 -Permission $writePermission -WhatIf
-            Test-CPermission -Path $certPath -Identity $script:user2 -Permission $readPermission -Exact | Should -BeTrue
-            Test-CPermission -Path $certPath -Identity $script:user2 -Permission $writePermission -Exact | Should -BeFalse
+            Test-CPermission -Path $certPath -Identity $script:user2 -Permission $readPermission -Strict |
+                Should -BeTrue
+            Test-CPermission -Path $certPath -Identity $script:user2 -Permission $writePermission -Strict |
+                Should -BeFalse
 
             # Context 'creating a deny rule' {
             Invoke-GrantPermissions -Path $certPath `
