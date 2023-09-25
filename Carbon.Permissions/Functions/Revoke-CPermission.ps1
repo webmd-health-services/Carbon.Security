@@ -84,7 +84,7 @@ function Revoke-CPermission
         return
     }
 
-    $Identity = Resolve-CPrincipalName -Name $Identity
+    $Identity = Resolve-CIdentityName -Name $Identity
 
     foreach ($item in (Get-Item $Path -Force))
     {

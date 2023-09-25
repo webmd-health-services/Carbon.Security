@@ -14,7 +14,7 @@ BeforeAll {
                   -Function ('Get-CPathProvider') `
                   -Global
     Import-Module -Name (Join-Path -Path $psModulesSharedPath -ChildPath 'Carbon.Accounts' -Resolve) `
-                  -Function ('Resolve-CPrincipalName') `
+                  -Function ('Resolve-CIdentityName') `
                   -Global
     $psModulesPath = Join-Path -Path $PSScriptRoot -ChildPath '..\PSModules' -Resolve
     Import-Module -Name (Join-Path -Path $psModulesPath -ChildPath 'Carbon.Cryptography' -Resolve) `
@@ -107,7 +107,7 @@ BeforeAll {
         $result = Grant-CPermission -Identity $Identity -Permission $Permissions -Path $path -PassThru @grantArgs
         $result = $result | Select-Object -Last 1
         $result | Should -Not -BeNullOrEmpty
-        $result.IdentityReference | Should -Be (Resolve-CPrincipalName $Identity)
+        $result.IdentityReference | Should -Be (Resolve-CIdentityName $Identity)
         $result | Should -BeOfType $expectedRuleType
         if( -not $ExpectedPermission )
         {

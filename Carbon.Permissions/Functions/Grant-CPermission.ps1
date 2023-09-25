@@ -201,13 +201,13 @@
         return
     }
 
-    if( -not (Test-CPrincipal -Name $Identity) )
+    if( -not (Test-CIdentity -Name $Identity) )
     {
         Write-Error ('Identity ''{0}'' not found.' -f $Identity)
         return
     }
 
-    $Identity = Resolve-CPrincipalName -Name $Identity
+    $Identity = Resolve-CIdentityName -Name $Identity
 
     if ($providerName -eq 'CryptoKey')
     {
@@ -350,7 +350,7 @@
     }
 
     $rulesToRemove = $null
-    $Identity = Resolve-CPrincipalName -Name $Identity
+    $Identity = Resolve-CIdentityName -Name $Identity
     if( $Clear )
     {
         $rulesToRemove = $currentAcl.Access |
