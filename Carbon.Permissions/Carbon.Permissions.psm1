@@ -1,4 +1,5 @@
 
+using namespace System.Diagnostics.CodeAnalysis
 using namespace System.IO
 using namespace System.Security.AccessControl
 
@@ -34,8 +35,12 @@ Import-Module -Name (Join-Path -Path $psModulesRoot -ChildPath 'Carbon.Accounts'
 
 if (-not (Test-Path -Path 'variable:IsWindows'))
 {
+    [SuppressMessage('PSAvoidAssignmentToAutomaticVariable', '')]
     $IsWindows = $true
-    $IsMacOS = $IsLinux = $false
+    [SuppressMessage('PSAvoidAssignmentToAutomaticVariable', '')]
+    $IsMacOS = $false
+    [SuppressMessage('PSAvoidAssignmentToAutomaticVariable', '')]
+    $IsLinux = $false
 }
 
 # Store each of your module's functions in its own file in the Functions
