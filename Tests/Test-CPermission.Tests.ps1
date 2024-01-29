@@ -31,8 +31,7 @@ BeforeAll {
     Grant-CPermission -Identity $script:identity `
                       -Permission ReadAndExecute `
                       -Path $script:dirPath `
-                      -InheritanceFlag ObjectInherit `
-                      -PropagationFlag InheritOnly
+                      -ApplyTo LeavesOnly
 
     $script:tempKeyPath = 'hkcu:\Software\Carbon\Test'
     $script:keyPath = Join-Path -Path $script:tempKeyPath -ChildPath 'Test-CPermission'
@@ -41,8 +40,7 @@ BeforeAll {
     Grant-CPermission -Identity $script:identity `
                       -Permission 'ReadKey','WriteKey' `
                       -Path $script:keyPath `
-                      -InheritanceFlag ObjectInherit `
-                      -PropagationFlag InheritOnly
+                      -ApplyTo LeavesOnly
 
     $script:testDirPermArgs = @{
         Path = $script:dirPath;
@@ -104,18 +102,18 @@ Describe 'Test-CPermission' {
         Test-CPermission @testFilePermArgs -Permission 'ReadAndExecute' -Inherited -Strict | Should -BeTrue
     }
 
-    It 'should ignore inheritance and propagation flags on file' {
+    It 'should ignore applies to flags on file' {
         $warning = @()
         Test-CPermission @testFilePermArgs `
                          -Permission 'ReadAndExecute' `
-                         -InheritanceFlag ContainerInherit `
-                         -PropagationFlag InheritOnly `
+                         -ApplyTo ContainerSubcontainersAndLeaves `
+                         -OnlyApplyToChildren `
                          -Inherited `
                          -WarningVariable 'warning' `
                          -WarningAction SilentlyContinue |
             Should -BeTrue
         $warning | Should -Not -BeNullOrEmpty
-        $warning[0] | Should -BeLike 'Can''t test inheritance/propagation rules on a leaf.*'
+        $warning[0] | Should -BeLike 'Can''t test "applies to" flags on a leaf.*'
     }
 
     It 'should check ungranted permission on registry' {
@@ -135,38 +133,12 @@ Describe 'Test-CPermission' {
             Should -BeTrue
     }
 
-    It 'should check ungranted inheritance flags' {
-        $inheritanceFlags = [InheritanceFlags]::ContainerInherit -bor [InheritanceFlags]::ObjectInherit
-        Test-CPermission @testDirPermArgs -Permission 'ReadAndExecute' -InheritanceFlag $inheritanceFlags |
+    It 'checks applies to flags' {
+        Test-CPermission @testDirPermArgs -Permission 'ReadAndExecute' -ApplyTo ContainerSubcontainersAndLeaves |
             Should -BeFalse
-    }
-
-    It 'should check granted inheritance flags' {
-        Test-CPermission @testDirPermArgs -Permission 'ReadAndExecute' -InheritanceFlag ObjectInherit | Should -BeTrue
-        Test-CPermission @testDirPermArgs `
-                         -Permission 'ReadAndExecute' `
-                         -InheritanceFlag ObjectInherit `
-                         -PropagationFlag InheritOnly |
-            Should -BeTrue
-    }
-
-
-    It 'should check strict ungranted inheritance flags' {
-        Test-CPermission @testDirPermArgs `
-                         -Permission 'ReadAndExecute' `
-                         -InheritanceFlag ObjectInherit `
-                         -PropagationFlag None `
-                         -Strict |
+        Test-CPermission @testDirPermArgs -Permission 'ReadAndExecute' -ApplyTo LeavesOnly | Should -BeTrue
+        Test-CPermission @testDirPermArgs -Permission 'ReadAndExecute' -ApplyTo LeavesOnly -OnlyApplyToChildren |
             Should -BeFalse
-    }
-
-    It 'should check strict granted inheritance flags' {
-        Test-CPermission @testDirPermArgs `
-                         -Permission 'ReadAndExecute' `
-                         -InheritanceFlag ObjectInherit `
-                         -PropagationFlag InheritOnly `
-                         -Strict |
-            Should -BeTrue
     }
 
     It 'should check permission on private key' {

@@ -13,7 +13,8 @@ Build:
     Path: Carbon.Permissions\Carbon.Permissions.psd1
     Prerelease:
     - main: ""
-    - "*": rc1
+    - "*": rc$(WHISKEY_BUILD_NUMBER)
+    IncrementPrereleaseVersion: true
 
 # Update the AppVeyor build/version number.
 - Exec:
