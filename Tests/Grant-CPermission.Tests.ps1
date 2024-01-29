@@ -72,9 +72,7 @@ BeforeAll {
             $ProviderName = 'FileSystem',
             [switch] $Clear,
             $ExpectedPermission,
-            $Type,
-            $WithInheritanceFlags,
-            $WithPropagationFlags
+            $Type
         )
 
         $grantArgs = @{ }
@@ -83,17 +81,6 @@ BeforeAll {
             HasPropagationFlags = [PropagationFlags]::None;
         }
 
-        if ($PSBoundParameters.ContainsKey('WithInheritanceFlags'))
-        {
-            $grantArgs['InheritanceFlag'] = $WithInheritanceFlags
-            $thenArgs['HasInheritanceFlags'] = $WithInheritanceFlags
-        }
-
-        if ($PSBoundParameters.ContainsKey('WithPropagationFlag'))
-        {
-            $grantArgs['PropagationFlag'] = $WithPropagationFlags
-            $thenArgs['HasPropagationFlags'] = $WithPropagationFlags
-        }
 
         if( $Clear )
         {
@@ -303,33 +290,108 @@ Describe 'Grant-CPermission' {
         ($rules.IdentityReference.Value -like 'Everyone') | Should -BeTrue
     }
 
-    $inheritanceFlags = [Enum]::GetValues([InheritanceFlags])
-    Context 'inheritance flag <_>' -ForEach $inheritanceFlags {
-        $inheritanceFlag = $_
-        $propagationFlags =
-            [Enum]::GetValues([PropagationFlags]) |
-            ForEach-Object { @{ PropagationFlag = $_ ; InheritanceFlag = $inheritanceFlag }}
-
-        Context 'propagation flag <propagationFlag>' -ForEach $propagationFlags {
-            It 'sets inheritance and propagation flags' {
-                $path = GivenDirectory
-                Grant-CPermission -Identity $script:user `
-                                  -Permission Read `
-                                  -Path $path `
-                                  -InheritanceFlag $InheritanceFlag `
-                                  -PropagationFlag $PropagationFlag
-                $expectedPropagationFlag = $PropagationFlag
-                if ($InheritanceFlag -eq [InheritanceFlags]::None)
-                {
-                    $expectedPropagationFlag = [PropagationFlags]::None
-                }
-                ThenPermission -On $path `
-                               -For $script:user `
-                               -Is ([FileSystemRights]::Read -bor [FileSystemRights]::Synchronize) `
-                               -HasInheritanceFlag $InheritanceFlag `
-                               -HasPropagationFlag $expectedPropagationFlag
-            }
+    $testCases = @(
+        # Apply deep.
+        @{
+            ApplyTo = 'ContainerOnly';
+            OnlyApplyToChildren = $false;
+            InheritanceFlags = [InheritanceFlags]::None;
+            PropagationFlags = [PropagationFlags]::None;
+        },
+        @{
+            ApplyTo = 'ContainerSubcontainersAndLeaves';
+            OnlyApplyToChildren = $false;
+            InheritanceFlags = [InheritanceFlags]::ContainerInherit -bor [InheritanceFlags]::ObjectInherit;
+            PropagationFlags = [PropagationFlags]::None;
+        },
+        @{
+            ApplyTo = 'ContainerAndSubcontainers';
+            OnlyApplyToChildren = $false;
+            InheritanceFlags = [InheritanceFlags]::ContainerInherit;
+            PropagationFlags = [PropagationFlags]::None;
+        },
+        @{
+            ApplyTo = 'ContainerAndLeaves';
+            OnlyApplyToChildren = $false;
+            InheritanceFlags = [InheritanceFlags]::ObjectInherit;
+            PropagationFlags = [PropagationFlags]::None;
+        },
+        @{
+            ApplyTo = 'SubcontainersAndLeavesOnly';
+            OnlyApplyToChildren = $false;
+            InheritanceFlags = [InheritanceFlags]::ContainerInherit -bor [InheritanceFlags]::ObjectInherit;
+            PropagationFlags = [PropagationFlags]::InheritOnly;
+        },
+        @{
+            ApplyTo = 'SubcontainersOnly';
+            OnlyApplyToChildren = $false;
+            InheritanceFlags = [InheritanceFlags]::ContainerInherit;
+            PropagationFlags = [PropagationFlags]::InheritOnly;
+        },
+        @{
+            ApplyTo = 'LeavesOnly';
+            OnlyApplyToChildren = $false;
+            InheritanceFlags = [InheritanceFlags]::ObjectInherit;
+            PropagationFlags = [PropagationFlags]::InheritOnly;
+        },
+        # Apply only to children/one level.
+        @{
+            ApplyTo = 'ContainerOnly';
+            OnlyApplyToChildren = $true;
+            InheritanceFlags = [InheritanceFlags]::None;
+            PropagationFlags = [PropagationFlags]::None;
+        },
+        @{
+            ApplyTo = 'ContainerSubcontainersAndLeaves';
+            OnlyApplyToChildren = $true;
+            InheritanceFlags = [InheritanceFlags]::ContainerInherit -bor [InheritanceFlags]::ObjectInherit;
+            PropagationFlags = [PropagationFlags]::NoPropagateInherit;
+        },
+        @{
+            ApplyTo = 'ContainerAndSubcontainers';
+            OnlyApplyToChildren = $true;
+            InheritanceFlags = [InheritanceFlags]::ContainerInherit;
+            PropagationFlags = [PropagationFlags]::NoPropagateInherit;
+        },
+        @{
+            ApplyTo = 'ContainerAndLeaves';
+            OnlyApplyToChildren = $true;
+            InheritanceFlags = [InheritanceFlags]::ObjectInherit;
+            PropagationFlags = [PropagationFlags]::NoPropagateInherit;
+        },
+        @{
+            ApplyTo = 'SubcontainersAndLeavesOnly';
+            OnlyApplyToChildren = $true;
+            InheritanceFlags = [InheritanceFlags]::ContainerInherit -bor [InheritanceFlags]::ObjectInherit;
+            PropagationFlags = [PropagationFlags]::InheritOnly -bor [PropagationFlags]::NoPropagateInherit;
+        },
+        @{
+            ApplyTo = 'SubcontainersOnly';
+            OnlyApplyToChildren = $true;
+            InheritanceFlags = [InheritanceFlags]::ContainerInherit;
+            PropagationFlags = [PropagationFlags]::InheritOnly -bor [PropagationFlags]::NoPropagateInherit;
+        },
+        @{
+            ApplyTo = 'LeavesOnly';
+            OnlyApplyToChildren = $true;
+            InheritanceFlags = [InheritanceFlags]::ObjectInherit;
+            PropagationFlags = [PropagationFlags]::InheritOnly -bor [PropagationFlags]::NoPropagateInherit;
         }
+    )
+
+
+    It 'sets flags for applies <ApplyTo> and apply only to children <OnlyApplyToChildren>' -TestCases $testCases {
+        $path = GivenDirectory
+        Grant-CPermission -Identity $script:user `
+                          -Permission Read `
+                          -Path $path `
+                          -ApplyTo $ApplyTo `
+                          -OnlyApplyToChildren:$OnlyApplyToChildren
+        ThenPermission -On $path `
+                       -For $script:user `
+                       -Is ([FileSystemRights]::Read -bor [FileSystemRights]::Synchronize) `
+                       -HasInheritanceFlag $InheritanceFlags `
+                       -HasPropagationFlag $PropagationFlags
     }
 
     It 'when a user already has a different permission' {
@@ -357,25 +419,24 @@ Describe 'Grant-CPermission' {
         $Global:VerbosePreference = $Global:DebugPreference = 'Continue'
         $containerPath = New-TestContainer -FileSystem
 
-        Invoke-GrantPermissions -Identity $script:user `
-                                -Permission FullControl `
-                                -Path $containerPath `
-                                -WithInheritanceFlags ObjectInherit `
-                                -WithPropagationFlags None
+        Grant-CPermission -Identity $script:user `
+                          -Permission FullControl `
+                          -Path $containerPath `
+                          -ApplyTo ContainerAndLeaves `
+                          -OnlyApplyToChildren
         ThenPermission -On $containerPath `
                        -For $script:user `
                        -Is ([FileSystemRights]::FullControl) `
-                       -HasInheritanceFlags ObjectInherit `
-                       -HasPropagationFlags None
+                       -HasInheritanceFlags [InheritanceFlags]::ObjectInherit `
+                       -HasPropagationFlags [PropagationFlags]::NoPropagateInherit
 
         Mock -CommandName 'Set-Acl' -Verifiable -ModuleName 'Carbon.Permissions'
 
         Grant-CPermission -Identity $script:user `
-                           -Permission FullControl `
-                           -Path $containerPath `
-                           -InheritanceFlag ([InheritanceFlags]::ObjectInherit) `
-                           -PropagationFlag ([PropagationFlags]::None) `
-                           -Force
+                          -Permission FullControl `
+                          -Path $containerPath `
+                          -ApplyTo ContainerAndLeaves `
+                          -Force
 
         Should -Invoke 'Set-Acl' -Times 1 -Exactly -ModuleName 'Carbon.Permissions'
     }
@@ -584,7 +645,11 @@ Describe 'Grant-CPermission' {
     It 'when granting multiple different rules to a user on the file system' {
         $dirPath = New-TestContainer -FileSystem
         Grant-CPermission -Path $dirPath -Identity $script:user -Permission 'Read' -Append
-        Grant-CPermission -Path $dirPath -Identity $script:user -Permission 'Write' -InheritanceFlag ObjectInherit -PropagationFlag None -Append
+        Grant-CPermission -Path $dirPath `
+                          -Identity $script:user `
+                          -Permission 'Write' `
+                          -ApplyTo ContainerAndLeaves `
+                          -Append
         $perm = Get-CPermission -Path $dirPath -Identity $script:user
         $perm | Should -HaveCount 2
     }

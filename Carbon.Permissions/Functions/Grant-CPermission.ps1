@@ -38,11 +38,27 @@
 
     To append/add permissions instead or replacing existing permissions on use the `Append` switch.
 
-    To control how the permission is applied and inherited to child items, use the `InheritanceFlag` and
-    `PropagationFlag` parameters to set the permission's inheritance and propagation flags, respectively. See [Manage
-    Access to Windows Objects with ACLs and the .NET
-    Framework](https://learn.microsoft.com/en-us/archive/msdn-magazine/2004/november/manage-access-to-windows-objects-with-acls-and-the-net-framework#S3)
-    from the November 2004 issue of *MSDN Magazine*.
+    To control how the permission is applied and inherited, use the `ApplyTo` and `OnlyApplyToChildren` parameters.
+    These behave like the "Applies to" and "Only apply these permissions to objects and/or containers within this
+    container" fields in the Windows Permission user interface. The following table shows how these parameters are
+    converted to `[Security.AccesControl.InheritanceFlags]` and `[Security.AccessControl.PropagationFlags]` values:
+
+    | ApplyTo                         | OnlyApplyToChildren | InheritanceFlags                | PropagationFlags
+    | ------------------------------- | ------------------- | ------------------------------- | ----------------
+    | ContainerOnly                   | false               | None                            | None
+    | ContainerSubcontainersAndLeaves | false               | ContainerInherit, ObjectInherit | None
+    | ContainerAndSubcontainers       | false               | ContainerInherit                | None
+    | ContainerAndLeaves              | false               | ObjectInherit                   | None
+    | SubcontainersAndLeavesOnly      | false               | ContainerInherit, ObjectInherit | InheritOnly
+    | SubcontainersOnly               | false               | ContainerInherit                | InheritOnly
+    | LeavesOnly                      | false               | ObjectInherit                   | InheritOnly
+    | ContainerOnly                   | true                | None                            | None
+    | ContainerSubcontainersAndLeaves | true                | ContainerInherit, ObjectInherit | NoPropagateInherit
+    | ContainerAndSubcontainers       | true                | ContainerInherit                | NoPropagateInherit
+    | ContainerAndLeaves              | true                | ObjectInherit                   | NoPropagateInherit
+    | SubcontainersAndLeavesOnly      | true                | ContainerInherit, ObjectInherit | NoPropagateInherit, InheritOnly
+    | SubcontainersOnly               | true                | ContainerInherit                | NoPropagateInherit, InheritOnly
+    | LeavesOnly                      | true                | ObjectInherit                   | NoPropagateInherit, InheritOnly
 
     To remove all other non-inherited permissions from the item, use the `Clear` switch. When using the `-Clear` switch
     and setting permissions on a private key in Windows PowerShell and the key is not a crypograhic next generation key,
@@ -114,7 +130,7 @@
     `ENTERPRISE\Wesley` will be able to read everything in `C:\Bridge` and write only in the `C:\Bridge` directory, not
     to any sub-directory.
     #>
-    [CmdletBinding(SupportsShouldProcess)]
+    [CmdletBinding(SupportsShouldProcess, DefaultParameterSetName='ApplyToContainersSubcontainersAndLeaves')]
     [OutputType([Security.AccessControl.AccessRule])]
     param(
         # The path on which the permissions should be granted.  Can be a file system, registry, or certificate path.If
@@ -134,18 +150,16 @@
         [Parameter(Mandatory)]
         [String[]] $Permission,
 
-        # The inheritance flags for the permission. Default is `ContainerInherit` and `ObjectInherit`. See [Manage
-        # Access to Windows Objects with ACLs and the .NET
-        # Framework](https://learn.microsoft.com/en-us/archive/msdn-magazine/2004/november/manage-access-to-windows-objects-with-acls-and-the-net-framework#S3)
-        # from the November 2004 issue of *MSDN Magazine* for more information.
-        [InheritanceFlags] $InheritanceFlag =
-            ([InheritanceFlags]::ContainerInherit -bor [InheritanceFlags]::ObjectInherit),
+        # How the permissions should be applied recursively to subcontainers and leaves. Default is
+        # `ContainerSubcontainersAndLeaves`.
+        [Parameter(Mandatory, ParameterSetName='IncludeAppliesTo')]
+        [ValidateSet('ContainerOnly', 'ContainerSubcontainersAndLeaves', 'ContainerAndSubcontainers',
+            'ContainerAndLeaves', 'SubcontainersAndLeavesOnly', 'SubcontainersOnly', 'LeavesOnly')]
+        [String] $ApplyTo,
 
-        # The propagation flags for the permission. Default is `None`.  See [Manage Access to Windows Objects with ACLs
-        # and the .NET
-        # Framework](https://learn.microsoft.com/en-us/archive/msdn-magazine/2004/november/manage-access-to-windows-objects-with-acls-and-the-net-framework#S3)
-        # from the November 2004 issue of *MSDN Magazine* for more information.
-        [PropagationFlags] $PropagationFlag = [PropagationFlags]::None,
+        # Inherited permissions should only apply to the children of the container, i.e. only one level deep.
+        [Parameter(ParameterSetName='IncludeAppliesTo')]
+        [switch] $OnlyApplyToChildren,
 
         # The type of rule to apply, either `Allow` or `Deny`. The default is `Allow`, which will allow access to the
         # item. The other option is `Deny`, which will deny access to the item.
@@ -326,20 +340,26 @@
     # http://www.bilalaslam.com/2010/12/14/powershell-workaround-for-the-security-identifier-is-not-allowed-to-be-the-owner-of-this-object-with-set-acl/
     $currentAcl = Get-Item -Path $Path -Force | Get-CAcl -IncludeSection ([AccessControlSections]::Access)
 
-    $testPermissionParams = @{ }
+    if (-not $ApplyTo)
+    {
+        $ApplyTo = 'ContainerSubcontainersAndLeaves'
+    }
+    $flags = ConvertTo-Flags -ApplyTo $ApplyTo -OnlyApplyToChildren:$OnlyApplyToChildren
+
+    $testPermsFlagsArgs = @{ }
     if (Test-Path $Path -PathType Container)
     {
-        $testPermissionParams['InheritanceFlag'] = $InheritanceFlag
-        $testPermissionParams['PropagationFlag'] = $PropagationFlag
+        $testPermsFlagsArgs['ApplyTo'] = $ApplyTo
+        $testPermsFlagsArgs['OnlyApplyToChildren'] = $OnlyApplyToChildren
     }
     else
     {
-        $InheritanceFlag = [InheritanceFlags]::None
-        $PropagationFlag = [PropagationFlags]::None
-        if($PSBoundParameters.ContainsKey('InheritanceFlag') -or $PSBoundParameters.ContainsKey('PropagationFlag'))
+        $flags.InheritanceFlags = [InheritanceFlags]::None
+        $flags.PropagationFlags = [PropagationFlags]::None
+        if($PSBoundParameters.ContainsKey('ApplyTo') -or $PSBoundParameters.ContainsKey('OnlyApplyToChildren'))
         {
-            $msg = 'Can''t apply inheritance/propagation flags to a leaf. Please omit "InheritanceFlag" and ' +
-                   '"PropagationFlag" parameters when `Path` is a leaf.'
+            $msg = 'Can''t set "applies to" flags on a leaf. Please omit "ApplyTo" and "OnlyApplyToChildren" ' +
+                   'parameters when "Path" is a leaf.'
             Write-Warning $msg
         }
     }
@@ -371,13 +391,14 @@
         }
     }
 
+
     $accessRule =
         New-Object -TypeName "Security.AccessControl.$($providerName)AccessRule" `
-                   -ArgumentList $Identity,$rights,$InheritanceFlag,$PropagationFlag,$Type |
+                   -ArgumentList $Identity,$rights,$flags.InheritanceFlags,$flags.PropagationFlags,$Type |
         Add-Member -MemberType NoteProperty -Name 'Path' -Value $Path -PassThru
 
     $missingPermission =
-        -not (Test-CPermission -Path $Path -Identity $Identity -Permission $Permission @testPermissionParams -Strict)
+        -not (Test-CPermission -Path $Path -Identity $Identity -Permission $Permission @testPermsFlagsArgs -Strict)
 
     $setAccessRule = ($Force -or $missingPermission)
     if( $setAccessRule )

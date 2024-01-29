@@ -4,24 +4,24 @@
 
 ### Upgrade Instructions
 
-Replaces usages of the `Grant-CPermission` and `Test-CPermission` functions' `ApplyTo` parameters with the new
-`InheritanceFlag` and `PropagationFlag` parameters. Here's a mapping:
+Replaces usages of the `Grant-CPermission` and `Test-CPermission` functions' `ApplyTo` parameter with new parameter
+values and a new `OnlyApplyToChildren` switch:
 
-Old ApplyTo Value                           | InheritanceFlag                  | PropagationFlag
-------------------------------------------- | -------------------------------- | -------------------------------
-Container                                   | None                             | None
-SubContainers                               | ContainerInherit                 | InheritOnly
-Leaves                                      | ObjectInherit                    | InheritOnly
-ChildContainers                             | ContainerInherit                 | InheritOnly, NoPropagateInherit
-ChildLeaves                                 | ObjectInherit                    | InheritOnly
-ContainerAndSubContainers                   | ContainerInherit                 | None
-ContainerAndLeaves                          | ObjectInherit                    | None
-SubContainerAndLeaves                       | ContainerInherit,ObjectInherit   | InheritOnly
-ContainerAndChildContainers                 | ContainerInherit                 | None
-ContainerAndChildLeaves                     | ObjectInherit                    | None
-ContainerAndChildContainersAndChildLeaves   | ContainerInherit,ObjectInherit   | NoPropagateInherit
-ContainerAndSubContainersAndLeaves          | ContainerInherit,ObjectInherit   | None
-ChildContainersAndChildLeaves               | ContainerInherit,ObjectInherit   | InheritOnly
+| Old Parameters                                     | New Parameters
+| -------------------------------------------------- | --------------
+| -ApplyTo Container                                 | -ApplyTo ContainerOnly
+| -ApplyTo SubContainers                             | -ApplyTo SubcontainersOnly
+| -ApplyTo Leaves                                    | -ApplyTo LeavesOnly
+| -ApplyTo ChildContainers                           | -ApplyTo SubcontainersOnly -OnlyApplyToChildren
+| -ApplyTo ChildLeaves                               | -ApplyTo LeavesOnly -OnlyApplyToChildren
+| -ApplyTo ContainerAndSubContainers                 | -ApplyTo ContainerAndSubcontainers
+| -ApplyTo ContainerAndLeaves                        | -ApplyTo ContainerAndLeaves
+| -ApplyTo SubContainerAndLeaves                     | -ApplyTo SubcontainersAndLeavesOnly
+| -ApplyTo ContainerAndChildContainers               | -ApplyTo ContainerAndSubcontainers -OnlyApplyToChildren
+| -ApplyTo ContainerAndChildLeaves                   | -ApplyTo ContainerAndLeaves -OnlyApplyToChildren
+| -ApplyTo ContainerAndChildContainersAndChildLeaves | -ApplyTo ContainerSubcontainersAndLeaves -OnlyApplyToChildren
+| -ApplyTo ContainerAndSubContainersAndLeaves        | -ApplyTo ContainerSubcontainersAndLeaves
+| -ApplyTo ChildContainersAndChildLeaves             | -ApplyTo SubcontainersAndLeavesOnly -OnlyApplyToChildren
 
 Replace usages of `Get-Permissions` with `Get-CPermission`.
 

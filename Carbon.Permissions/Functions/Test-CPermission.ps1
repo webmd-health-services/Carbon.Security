@@ -32,10 +32,28 @@ function Test-CPermission
     Extra/additional permissions on the item are ignored. To check that the user/group has the exact permissions passed
     to the `Permission` parameter, use the `Strict` switch.
 
-    You can also check that the item's inheritence and propagation flags by using the `InheritanceFlag` and
-    `PropagationFlag` parameters. If either parameter is passed a value of `None`, the test will fail if any flag is
-    set.  Otherwise, like the `Permissions` parameter, flags not passed are ignored if set. To ensure the exact
-    inheritance and propagation flags that are passed are also on the item, use the `Strict` switch.
+    You can also test how the item's permissions are applied and inherited, use the `ApplyTo` and `OnlyApplyToChildren`
+    parameters. These match the "Applies to" and "Only apply these permissions to objects and/or containers within this
+    container" fields in the Windows Permission user interface. The following table shows how these parameters are
+    converted to `[Security.AccesControl.InheritanceFlags]` and `[Security.AccessControl.PropagationFlags]` values:
+
+    | ApplyTo                         | OnlyApplyToChildren | InheritanceFlags                | PropagationFlags
+    | ------------------------------- | ------------------- | ------------------------------- | ----------------
+    | ContainerOnly                   | false               | None                            | None
+    | ContainerSubcontainersAndLeaves | false               | ContainerInherit, ObjectInherit | None
+    | ContainerAndSubcontainers       | false               | ContainerInherit                | None
+    | ContainerAndLeaves              | false               | ObjectInherit                   | None
+    | SubcontainersAndLeavesOnly      | false               | ContainerInherit, ObjectInherit | InheritOnly
+    | SubcontainersOnly               | false               | ContainerInherit                | InheritOnly
+    | LeavesOnly                      | false               | ObjectInherit                   | InheritOnly
+    | ContainerOnly                   | true                | None                            | None
+    | ContainerSubcontainersAndLeaves | true                | ContainerInherit, ObjectInherit | NoPropagateInherit
+    | ContainerAndSubcontainers       | true                | ContainerInherit                | NoPropagateInherit
+    | ContainerAndLeaves              | true                | ObjectInherit                   | NoPropagateInherit
+    | SubcontainersAndLeavesOnly      | true                | ContainerInherit, ObjectInherit | NoPropagateInherit, InheritOnly
+    | SubcontainersOnly               | true                | ContainerInherit                | NoPropagateInherit, InheritOnly
+    | LeavesOnly                      | true                | ObjectInherit                   | NoPropagateInherit, InheritOnly
+
 
     By default, inherited permissions are ignored. To check inherited permission, use the `-Inherited` switch.
 
@@ -81,7 +99,7 @@ function Test-CPermission
     Demonstrates how to test for permissions on a certificate's private key/key container. If the certificate doesn't
     have a private key, returns `$true`.
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName='ExcludeApplyTo')]
     param(
         # The path on which the permissions should be checked.  Can be a file system or registry path. For certificate
         # private keys, pass a certificate provider path, e.g. `cert:`.
@@ -99,15 +117,16 @@ function Test-CPermission
         [Parameter(Mandatory)]
         [String[]] $Permission,
 
-        # The inheritance flags to check for. Default is to ignore inheritance flags when testing the permission. If
-        # passed `None`, the target must have no flags set. Otherwise, any flags not passed are ignored if set. To check
-        # that the exact inheritance flags are set, use the `Strict` switch.
-        [InheritanceFlags] $InheritanceFlag,
+        # How the permissions should be applied recursively to subcontainers and leaves. Default is
+        # `ContainerSubcontainersAndLeaves`.
+        [Parameter(Mandatory, ParameterSetName='IncludeApplyTo')]
+        [ValidateSet('ContainerOnly', 'ContainerSubcontainersAndLeaves', 'ContainerAndSubcontainers',
+            'ContainerAndLeaves', 'SubcontainersAndLeavesOnly', 'SubcontainersOnly', 'LeavesOnly')]
+        [String] $ApplyTo,
 
-        # The propagation flags to check for. Default is to ignore propagation flags when testing the permission. If
-        # passed `None`, the target must have no flags set. Otherwise, any flags not passed are ignored if set. To check
-        # that the exact propagation flags are set, use the `Strict` switch.
-        [PropagationFlags] $PropagationFlag,
+        # Inherited permissions should only apply to the children of the container, i.e. only one level deep.
+        [Parameter(ParameterSetName='IncludeApplyTo')]
+        [switch] $OnlyApplyToChildren,
 
         # Include inherited permissions in the check.
         [switch] $Inherited,
@@ -157,14 +176,18 @@ function Test-CPermission
 
     $rightsPropertyName = "${providerName}Rights"
     $isLeaf = (Test-Path -Path $Path -PathType Leaf)
-    $testInheritanceFlag = $PSBoundParameters.ContainsKey('InheritanceFlag')
-    $testPropagationFlag = $PSBoundParameters.ContainsKey('PropagationFlag')
-    if ($isLeaf -and ($testInheritanceFlag -or $testPropagationFlag))
+
+    $testFlags = $PSCmdlet.ParameterSetName -eq 'IncludeApplyTo'
+    $flags = $null
+    if ($testFlags)
     {
-        $InheritanceFlag = [InheritanceFlags]::None
-        $PropagationFlag = [PropagationFlags]::None
-        $msg = 'Can''t test inheritance/propagation rules on a leaf. Please omit `InheritanceFlag` and ' +
-                '`PropagationFlag` parameter when `Path` is a leaf.'
+        $flags = ConvertTo-Flags -ApplyTo $ApplyTo -OnlyApplyToChildren:$OnlyApplyToChildren
+    }
+
+    if ($isLeaf -and $testFlags)
+    {
+        $msg = 'Can''t test "applies to" flags on a leaf. Please omit "ApplyTo" and "OnlyApplyToChildren" parameters ' +
+               'when "Path" is a leaf.'
         Write-Warning $msg
     }
 
@@ -191,40 +214,12 @@ function Test-CPermission
             return ($_.$rightsPropertyName -band $rights) -eq $rights
         } |
         Where-Object {
-            if ($isLeaf)
+            if ($isLeaf -or -not $testFlags)
             {
                 return $true
             }
 
-            if (-not $testInheritanceFlag)
-            {
-                return $true
-            }
-
-            if ($Strict -or $InheritanceFlag -eq [InheritanceFlags]::None)
-            {
-                return ($_.InheritanceFlags -eq $InheritanceFlag)
-            }
-
-            return (($_.InheritanceFlags -band $InheritanceFlag) -eq $InheritanceFlag)
-        } |
-        Where-Object {
-            if ($isLeaf)
-            {
-                return $true
-            }
-
-            if (-not $testPropagationFlag)
-            {
-                return $true
-            }
-
-            if ($Strict -or $PropagationFlag -eq [PropagationFlags]::None)
-            {
-                return ($_.PropagationFlags -eq $PropagationFlag)
-            }
-
-            return (($_.PropagationFlags -band $PropagationFlag) -eq $PropagationFlag)
+            return $_.InheritanceFlags -eq $flags.InheritanceFlags -and $_.PropagationFlags -eq $flags.PropagationFlags
         }
 
     if ($acl)
