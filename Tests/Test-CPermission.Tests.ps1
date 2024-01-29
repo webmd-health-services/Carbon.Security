@@ -210,4 +210,68 @@ Describe 'Test-CPermission' {
         Test-CPermission -Path $certPath -Identity $script:identity -Permission 'FullControl' | Should -BeTrue
         Test-CPermission -Path $certPath -Identity $script:identity -Permission 'FullControl' -Strict | Should -BeTrue
     }
+
+    $testCases = @(
+        @{
+            Flags = [InheritanceFlags]::None;
+            Result = $false;
+        },
+        @{
+            Flags = [InheritanceFlags]::ContainerInherit;
+            Result = $true;
+        },
+        @{
+            Flags = [InheritanceFlags]::ObjectInherit;
+            Result = $true;
+        },
+        @{
+            Flags = [InheritanceFlags]::ContainerInherit -bor [InheritanceFlags]::ObjectInherit;
+            Result = $true;
+        }
+
+    )
+    It 'handles inheritance flags <Flags>' -TestCases $testCases {
+        Grant-CPermission -Path $script:dirPath `
+                          -Identity $script:identity `
+                          -Permission ReadAndExecute `
+                          -InheritanceFlag ([InheritanceFlags]::ContainerInherit -bor [InheritanceFlags]::ObjectInherit)
+        Test-CPermission -Path $script:dirPath `
+                         -Identity $script:identity `
+                         -Permission ReadAndExecute `
+                         -InheritanceFlag $Flags |
+            Should -Be $Result
+
+    }
+
+    $testCases = @(
+        @{
+            Flags = [PropagationFlags]::None;
+            Result = $false;
+        },
+        @{
+            Flags = [PropagationFlags]::NoPropagateInherit;
+            Result = $true;
+        },
+        @{
+            Flags = [PropagationFlags]::InheritOnly;
+            Result = $true;
+        },
+        @{
+            Flags = [PropagationFlags]::NoPropagateInherit -bor [PropagationFlags]::InheritOnly;
+            Result = $true;
+        }
+
+    )
+    It 'handles propagation flags <Flags>' -TestCases $testCases {
+        Grant-CPermission -Path $script:dirPath `
+                          -Identity $script:identity `
+                          -Permission ReadAndExecute `
+                          -PropagationFlag ([PropagationFlags]::NoPropagateInherit -bor [PropagationFlags]::InheritOnly)
+        Test-CPermission -Path $script:dirPath `
+                         -Identity $script:identity `
+                         -Permission ReadAndExecute `
+                         -PropagationFlag $Flags |
+            Should -Be $Result
+
+    }
 }

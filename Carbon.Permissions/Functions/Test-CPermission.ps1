@@ -32,9 +32,10 @@ function Test-CPermission
     Extra/additional permissions on the item are ignored. To check that the user/group has the exact permissions passed
     to the `Permission` parameter, use the `Strict` switch.
 
-    You can also check that the item's inheritenche and propagation flags by using the InheritanceFlag and
-     PropagationFlag parameters. Like the `Permissions` parameter, additional/extra flags are ignored. To ensure the
-     exact inheritance and propagation flags that are passed are also on the item, use the `Strict` switch.
+    You can also check that the item's inheritence and propagation flags by using the `InheritanceFlag` and
+    `PropagationFlag` parameters. If either parameter is passed a value of `None`, the test will fail if any flag is
+    set.  Otherwise, like the `Permissions` parameter, flags not passed are ignored if set. To ensure the exact
+    inheritance and propagation flags that are passed are also on the item, use the `Strict` switch.
 
     By default, inherited permissions are ignored. To check inherited permission, use the `-Inherited` switch.
 
@@ -98,10 +99,14 @@ function Test-CPermission
         [Parameter(Mandatory)]
         [String[]] $Permission,
 
-        # The inheritance flags to check for. Default is to ignore inheritance flags when testing the permission.
+        # The inheritance flags to check for. Default is to ignore inheritance flags when testing the permission. If
+        # passed `None`, the target must have no flags set. Otherwise, any flags not passed are ignored if set. To check
+        # that the exact inheritance flags are set, use the `Strict` switch.
         [InheritanceFlags] $InheritanceFlag,
 
-        # The propagation flags to check for. Default is to ignore propagation flags when testing the permission.
+        # The propagation flags to check for. Default is to ignore propagation flags when testing the permission. If
+        # passed `None`, the target must have no flags set. Otherwise, any flags not passed are ignored if set. To check
+        # that the exact propagation flags are set, use the `Strict` switch.
         [PropagationFlags] $PropagationFlag,
 
         # Include inherited permissions in the check.
@@ -196,7 +201,7 @@ function Test-CPermission
                 return $true
             }
 
-            if ($Strict)
+            if ($Strict -or $InheritanceFlag -eq [InheritanceFlags]::None)
             {
                 return ($_.InheritanceFlags -eq $InheritanceFlag)
             }
@@ -214,7 +219,7 @@ function Test-CPermission
                 return $true
             }
 
-            if ($Strict)
+            if ($Strict -or $PropagationFlag -eq [PropagationFlags]::None)
             {
                 return ($_.PropagationFlags -eq $PropagationFlag)
             }
