@@ -68,6 +68,16 @@ function Revoke-CPermission
         return
     }
 
+    if (-not (Test-CIdentity -Name $Identity))
+    {
+        $msg = "Failed to revoke permissions on ""${Path}"" to ""${Identity}"" because that user or group does not " +
+               'exist.'
+        Write-Error $msg -ErrorAction $ErrorActionPreference
+        return
+    }
+
+    $Identity = Resolve-CIdentityName -Name $Identity
+
     $providerName = Get-CPathProvider -Path $Path | Select-Object -ExpandProperty 'Name'
     if( $providerName -eq 'Certificate' )
     {
@@ -83,8 +93,6 @@ function Revoke-CPermission
     {
         return
     }
-
-    $Identity = Resolve-CIdentityName -Name $Identity
 
     foreach ($item in (Get-Item $Path -Force))
     {

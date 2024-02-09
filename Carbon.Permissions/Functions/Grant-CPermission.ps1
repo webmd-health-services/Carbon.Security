@@ -196,6 +196,16 @@
         return
     }
 
+    if (-not (Test-CIdentity -Name $Identity))
+    {
+        $msg = "Failed to grant permissions on ""${Path}"" to ""${Identity}"" because that user or group does not " +
+               'exist.'
+        Write-Error $msg -ErrorAction $ErrorActionPreference
+        return
+    }
+
+    $Identity = Resolve-CIdentityName -Name $Identity
+
     $providerName = Get-CPathProvider -Path $Path | Select-Object -ExpandProperty 'Name'
     if( $providerName -eq 'Certificate' )
     {
@@ -204,24 +214,31 @@
 
     if( $providerName -ne 'Registry' -and $providerName -ne 'FileSystem' -and $providerName -ne 'CryptoKey' )
     {
-        Write-Error "Unsupported path: '$Path' belongs to the '$providerName' provider.  Only file system, registry, and certificate paths are supported."
+        $msg = "Failed to grant permissions to ""${Identity}"" on path ""${Path}"" because that path belongs to the " +
+               "unsupported ""${providerName}"" provider.  Only file system, registry, and certificate paths are " +
+               'supported.'
+        Write-Error $msg -ErrorAction $ErrorActionPreference
         return
     }
 
     $rights = $Permission | ConvertTo-CProviderAccessControlRights -ProviderName $providerName
     if (-not $rights)
     {
-        Write-Error ('Unable to grant {0} {1} permissions on {2}: received an unknown permission.' -f $Identity,($Permission -join ','),$Path)
+        $pluralSuffix = ''
+        $thatThose = 'that'
+        $isAre = 'is'
+        if (($Permission | Measure-Object).Count -gt 1)
+        {
+            $pluralSuffix = 's'
+            $thatThose = 'one or more'
+            $isAre = 'are'
+        }
+
+        $msg = "Failed to grant permission${pluralSuffix} ""$($Permission -join ', ')"" to ""${Identity}"" on " +
+               """${Path}"" because ${thatThose} permission ${isAre} not valid or not supported on that path."
+        Write-Error $msg -ErrorAction $ErrorActionPreference
         return
     }
-
-    if( -not (Test-CIdentity -Name $Identity) )
-    {
-        Write-Error ('Identity ''{0}'' not found.' -f $Identity)
-        return
-    }
-
-    $Identity = Resolve-CIdentityName -Name $Identity
 
     if ($providerName -eq 'CryptoKey')
     {

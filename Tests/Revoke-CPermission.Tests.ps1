@@ -169,4 +169,9 @@ Describe 'Revoke-CPermission' {
         }
     }
 
+    It 'validates identity' {
+        {
+            Revoke-CPermission -Path $script:testDirPath -Identity 'fubarsnafu' -ErrorAction Stop
+        } | Should -Throw '*user or group does not exist*'
+    }
 }

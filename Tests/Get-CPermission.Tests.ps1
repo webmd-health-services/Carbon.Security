@@ -144,4 +144,11 @@ Describe 'Get-CPermission' {
             Uninstall-CCertificate -Thumbprint $cert.Thumbprint -StoreLocation CurrentUser -StoreName My
         }
     }
+
+    It 'validates identity' {
+        {
+            Get-CPermission -Path $script:containerPath -Identity 'fubarsnafu' -ErrorAction Stop
+        } | Should -Throw '*user or group does not exist*'
+
+    }
 }

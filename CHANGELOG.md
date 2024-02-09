@@ -41,6 +41,12 @@ Supports getting only specific sections/parts of the security descriptor, too.
 ### Changed
 
 * Switch `Exact` renamed to `Strict` on the `Get-CPermission` and `Test-CPermission` functions.
+* `Get-CPermission` and `Revoke-CPermission` now write an error if the identity whose permissions to get/revoke doesn't
+  exist.
+
+### Fixed
+
+* `Grant-CPermission` and `Get-CPermission` write the wrong error if the `ErrorAction` parameter is set to `Ignore`.
 
 ### Removed
 

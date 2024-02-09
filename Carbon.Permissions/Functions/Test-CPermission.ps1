@@ -54,7 +54,6 @@ function Test-CPermission
     | SubcontainersOnly               | true                | ContainerInherit                | NoPropagateInherit, InheritOnly
     | LeavesOnly                      | true                | ObjectInherit                   | NoPropagateInherit, InheritOnly
 
-
     By default, inherited permissions are ignored. To check inherited permission, use the `-Inherited` switch.
 
     .OUTPUTS

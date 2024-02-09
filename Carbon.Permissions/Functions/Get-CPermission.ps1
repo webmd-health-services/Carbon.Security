@@ -81,20 +81,25 @@ function Get-CPermission
     Set-StrictMode -Version 'Latest'
     Use-CallerPreference -Cmdlet $PSCmdlet -Session $ExecutionContext.SessionState
 
-    $account = $null
-    if( $Identity )
+    $Path = Resolve-Path -Path $Path
+    if (-not $Path)
     {
-        $account = Test-CIdentity -Name $Identity -PassThru
-        if( $account )
-        {
-            $Identity = $account.FullName
-        }
+        return
     }
 
-    if( -not (Test-Path -Path $Path) )
+    $account = $null
+    if ($Identity)
     {
-        Write-Error ('Path ''{0}'' not found.' -f $Path)
-        return
+        $account = Test-CIdentity -Name $Identity -PassThru
+        if (-not $account)
+        {
+            $msg = "Failed to get permissions on ""${Path}"" for ""${Identity}"" because that user or group does not " +
+                   'exist.'
+            Write-Error -Message $msg -ErrorAction $ErrorActionPreference
+            return
+        }
+
+        $Identity = $account.FullName
     }
 
     & {
