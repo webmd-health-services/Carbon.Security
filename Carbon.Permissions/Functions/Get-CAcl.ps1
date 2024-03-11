@@ -55,7 +55,7 @@ function Get-CAcl
         if ($InputObject -isnot [FileSystemInfo])
         {
             $msg = "Failed to get ACL for ""${InputObject}"" because it doesn't have a ""GetAccessControl"" member " +
-                   "and is not a FileInfo or DirectoryInfo object."
+                   "and is a [$($InputObject.GetType().FullName)] object and not a FileInfo or DirectoryInfo object."
             Write-Error -Message $msg -ErrorAction $ErrorActionPreference
             return
         }
