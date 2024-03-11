@@ -18,11 +18,6 @@ BeforeAll {
                   -Function ('Resolve-CIdentityName') `
                   -Global `
                   -Verbose:$false
-    $psModulesPath = Join-Path -Path $PSScriptRoot -ChildPath '..\PSModules' -Resolve
-    Import-Module -Name (Join-Path -Path $psModulesPath -ChildPath 'Carbon.Cryptography' -Resolve) `
-                  -Function ('Install-CCertificate', 'Uninstall-CCertificate') `
-                  -Global `
-                  -Verbose:$false
 
     $script:testDirPath = $null
     $script:testNum = 0
@@ -32,7 +27,6 @@ BeforeAll {
     $script:user2 = 'CarbonGrantPerms2'
     $containerPath = $null
     $regContainerPath = $null
-    $script:privateKeyPath = Join-Path -Path $PSScriptRoot -ChildPath 'Certificates\CarbonTestPrivateKey.pfx' -Resolve
 
     function Assert-InheritanceFlags
     {
@@ -168,14 +162,6 @@ BeforeAll {
             $expectedPermission = [RegistryRights]0
             $rightsPropertyName = 'RegistryRights'
         }
-        elseif ($provider.Name -eq 'Certificate')
-        {
-            if ((Invoke-TestCCryptoKeyAvailable) -and $Is -isnot [FileSystemRights])
-            {
-                $expectedPermission = [CryptoKeyRights]0
-                $rightsPropertyName = 'CryptoKeyRights'
-            }
-        }
 
         $Is | ForEach-Object { $expectedPermission = $expectedPermission -bor $_ }
         if ($rightsPropertyName -eq 'FileSystemRights' -and $OfType -eq [AccessControlType]::Allow)
@@ -239,10 +225,10 @@ Describe 'Grant-CPermission' {
 
     It 'when passing an invalid permission' {
         $path = New-TestFile
-        $error.Clear()
         $result = Grant-CPermission -Identity 'BUILTIN\Administrators' -Permission 'BlahBlahBlah' -Path $path -PassThru -ErrorAction SilentlyContinue
         $result | Should -BeNullOrEmpty
-        $error.Count | Should -Be 2
+        $Global:Error.Count | Should -Be 1
+        $Global:Error | Should -Match 'permission is invalid or unknown'
     }
 
     It 'when clearing existing permissions' {
@@ -416,7 +402,6 @@ Describe 'Grant-CPermission' {
     }
 
     It 'when forcing a permission change and the user already has the permissions' {
-        $Global:VerbosePreference = $Global:DebugPreference = 'Continue'
         $containerPath = New-TestContainer -FileSystem
 
         Grant-CPermission -Identity $script:user `
@@ -456,8 +441,8 @@ Describe 'Grant-CPermission' {
     It 'when the path does not exist' {
         $result = Grant-CPermission -Identity $script:user -Permission Read -Path 'C:\I\Do\Not\Exist' -PassThru -ErrorAction SilentlyContinue
         $result | Should -BeNullOrEmpty
-        $Global:Error.Count | Should -BeGreaterThan 0
-        $Global:Error[0] | Should -Match 'Cannot find path'
+        $Global:Error | Should -HaveCount 1
+        $Global:Error | Should -Match 'path does not exist'
     }
 
     It 'when clearing a permission that already exists on a file' {
@@ -493,141 +478,6 @@ Describe 'Grant-CPermission' {
         ThenPermission -On $regContainerPath -For $script:user -Is ([RegistryRights]::QueryValues)
 
         $Global:Error | Should -BeNullOrEmpty
-    }
-
-    $skip = (Test-Path -Path 'env:WHS_CI') -and $env:WHS_CI -eq 'True' -and $PSVersionTable['PSVersion'].Major -eq 7
-    $testCases = @('LocalMachine', 'CurrentUser')
-    It 'when setting permissions on a private key in the <_> location' -TestCases $testCases -Skip:$skip {
-        $location = $_
-        $cert = Install-CCertificate -Path $script:privateKeyPath -StoreLocation $location -StoreName My -PassThru
-        try
-        {
-            $certPath = Join-Path -Path ('cert:\{0}\My' -f $location) -ChildPath $cert.Thumbprint
-
-            # CryptoKey does not exist in .NET standard/core so we will have to use FileSystem instead
-            if ((Invoke-TestCCryptoKeyAvailable))
-            {
-                $expectedProviderName = 'CryptoKey'
-                $readPermission = 'GenericRead'
-                $readRights = [CryptoKeyRights]::GenericRead,[CryptoKeyRights]::Synchronize
-                $readRightsForDeny = [CryptoKeyRights]::GenericRead
-                $writePermission = 'GenericWrite'
-                # $expectedPerm = 'GenericAll'
-                $writeRights = [CryptoKeyRights]::GenericAll,[CryptoKeyRights]::GenericRead,[CryptoKeyRights]::Synchronize
-            }
-            else
-            {
-                $expectedProviderName = 'FileSystem'
-                $readPermission = 'Read'
-                $readRights = [FileSystemRights]::Read
-                $readRightsForDeny = [FileSystemRights]::Read
-                $writePermission = 'Write'
-                $writeRights = [FileSystemRights]::Write
-            }
-
-            $cert | Should -Not -BeNullOrEmpty
-
-            # Context 'adds permissions' {
-            Invoke-GrantPermissions -Path $certPath `
-                                    -Identity $script:user `
-                                    -Permission $writePermission `
-                                    -ProviderName $expectedProviderName `
-                                    -ExpectedPermission $writeRights
-            ThenPermission -On $certPath -For $script:user -Is $writeRights
-
-            # Context 'changes permissions' {
-            Invoke-GrantPermissions -Path $certPath `
-                                    -Identity $script:user `
-                                    -Permission $readPermission `
-                                    -ProviderName $expectedProviderName `
-                                    -ExpectedPermission $readRights
-            ThenPermission -On $certPath -For $script:user -Is $readRights
-
-            # Context 'clearing others'' permissions' {
-            Invoke-GrantPermissions -Path $certPath `
-                                    -Identity $script:user2 `
-                                    -Permission $readPermission `
-                                    -ProviderName $expectedProviderName `
-                                    -ExpectedPermission $readRights `
-                                    -Clear
-            ThenPermission -On $certPath -For $script:user2 -Is $readRights
-            Test-CPermission -Path $certPath -Identity $script:user -Permission $readPermission | Should -BeFalse
-
-            # Context 'clearing others'' permissions when permissions getting set haven''t changed' {
-            Invoke-GrantPermissions -Path $certPath `
-                                    -Identity $script:user `
-                                    -Permission $readPermission `
-                                    -ProviderName $expectedProviderName `
-                                    -ExpectedPermission $readRights
-            ThenPermission -On $certPath -For $script:user -Is $readRights
-            Invoke-GrantPermissions -Path $certPath `
-                                    -Identity $script:user2 `
-                                    -Permission $readPermission `
-                                    -ProviderName $expectedProviderName `
-                                    -ExpectedPermission $readRights `
-                                    -Clear
-            ThenPermission -On $certPath -For $script:user2 -Is $readRights
-            Test-CPermission -Path $certPath -Identity $script:user -Permission $readPermission | Should -BeFalse
-
-            # Context 'running with -WhatIf switch' {
-            Grant-CPermission -Path $certPath -Identity $script:user2 -Permission $writePermission -WhatIf
-            Test-CPermission -Path $certPath -Identity $script:user2 -Permission $readPermission -Strict |
-                Should -BeTrue
-            Test-CPermission -Path $certPath -Identity $script:user2 -Permission $writePermission -Strict |
-                Should -BeFalse
-
-            # Context 'creating a deny rule' {
-            Invoke-GrantPermissions -Path $certPath `
-                                    -Identity $script:user `
-                                    -Permission $readPermission `
-                                    -Type 'Deny' `
-                                    -ProviderName $expectedProviderName `
-                                    -ExpectedPermission $readRightsForDeny
-            ThenPermission -On $certPath -For $script:user -Is $readRightsForDeny -OfType Deny
-
-            # CryptoKey does not exist in .NET standard/core
-            if( (Invoke-TestCCryptoKeyAvailable) )
-            {
-                Mock -CommandName 'Set-CCryptoKeySecurity' -Verifiable -ModuleName 'Carbon.Permissions'
-
-                # Context 'permissions exist' {
-                # Now, check that permissions don't get re-applied.
-                Grant-CPermission -Path $certPath -Identity $script:user2 -Permission $readPermission
-                Should -Invoke 'Set-CCryptoKeySecurity' -ModuleName 'Carbon.Permissions' -Times 0
-
-                # Context 'permissions exist but forcing the change' {
-                Grant-CPermission -Path $certPath -Identity $script:user2 -Permission $readPermission -Force
-                Should -Invoke 'Set-CCryptoKeySecurity' -ModuleName 'Carbon.Permissions' -Times 1 -Exactly
-            }
-        }
-        finally
-        {
-            Uninstall-CCertificate -Thumbprint $cert.Thumbprint -StoreLocation $location -StoreName My
-        }
-    }
-
-    It 'grants permissions to cng key' {
-        $certPath = Join-Path -Path $PSScriptRoot -ChildPath 'Certificates\CarbonRsaCng.pfx' -Resolve
-        $cert = Install-CCertificate -Path $certPath -StoreLocation CurrentUser -StoreName My -PassThru
-        $expectedRights = [FileSystemRights]::Write
-
-        try
-        {
-            $certPath = Join-Path -Path 'cert:\CurrentUser\My' -ChildPath $cert.Thumbprint
-
-            $cert | Should -Not -BeNullOrEmpty
-
-            Invoke-GrantPermissions -Path $certPath `
-                                    -Identity $script:user `
-                                    -Permission 'GenericWrite' `
-                                    -ProviderName 'FileSystem' `
-                                    -ExpectedPermission $expectedRights
-            ThenPermission -On $certPath -For $script:user -Is $expectedRights
-        }
-        finally
-        {
-            Uninstall-CCertificate -Thumbprint $cert.Thumbprint -StoreLocation CurrentUser -StoreName My
-        }
     }
 
     It 'when setting Deny rule on file system' {

@@ -4,7 +4,37 @@
 
 ### Upgrade Instructions
 
-Replaces usages of the `Grant-CPermission` and `Test-CPermission` functions' `ApplyTo` parameter with new parameter
+This is not the upgrade path you want, if switching from Carbon. The `Get-CPermission`, `Grant-CPermission`,
+`Revoke-CPermission`, and `Test-CPermission` functions were migrated to the following modules with the following
+function names.
+
+`Carbon.FileSystem`:
+
+* `Get-CNtfsPermission`
+* `Grant-CNtfsPermission`
+* `Revoke-CNtfsPermission`
+* `Test-CNtfsPermission`
+
+`Carbon.Registry`:
+
+* `Get-CRegistryPermission`
+* `Grant-CRegistryPermission`
+* `Revoke-CRegistryPermission`
+* `Test-CRegistryPermission`:
+
+`Carbon.Cryptography`:
+
+* `Get-CPrivateKey`
+* `Get-CPrivateKeyPermission`
+* `Grant-CPrivateKeyPermission`
+* `Resolve-CPrivateKeyPath`
+* `Revoke-CPrivateKeyPermission`
+* `Test-CPrivateKeyPath`
+
+You *must* switch to `Carbon.Cryptography` if managing permissions on private keys/key containers. `Carbon.Permissions`
+only manages permissions on files, directories, and registry keys.
+
+Replace usages of the `Grant-CPermission` and `Test-CPermission` functions' `ApplyTo` parameter with new parameter
 values and a new `OnlyApplyToChildren` switch:
 
 | Old Parameters                                     | New Parameters
@@ -44,7 +74,9 @@ Supports getting only specific sections/parts of the security descriptor, too.
 
 ### Removed
 
-* The `ApplyTo` function on `Grant-CPermission` and `Test-CPermission`. Use the new `InheritanceFlag` and
-`PropagationFlag` parameters to set a permission's inheritance and propagation flags.
 * Alias `Get-Permissions`. Use `Get-CPermission` instead.
 * Alias `Grant-Permissions`. Use `Grant-CPermission` instead.
+* Private key/key container support from `Get-CPermission`, `Grant-CPermission`, `Revoke-CPermission`, and
+`Test-CPermission`. Switch to the `Carbon.Cryptography` module's `Get-CPrivateKey`, `Get-CPrivateKeyPermission`,
+`Grant-CPrivateKeyPermission`, `Resolve-CPrivateKeyPath`, `Revoke-CPrivateKeyPermission`, and `Test-CPrivateKeyPath`
+instead.

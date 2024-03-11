@@ -7,17 +7,9 @@ BeforeAll {
 
     & (Join-Path -Path $PSScriptRoot -ChildPath 'Initialize-Test.ps1' -Resolve)
 
-    $psModulesPath = Join-Path -Path $PSScriptRoot -ChildPath '..\PSModules' -Resolve
-    Import-Module -Name (Join-Path -Path $psModulesPath -ChildPath 'Carbon.Cryptography' -Resolve) `
-                  -Function ('Install-CCertificate', 'Uninstall-CCertificate') `
-                  -Global `
-                  -Verbose:$false
-
     $script:testDirPath = ''
     $script:testNum = 0
     $script:username = 'CarbonGrantPerms'
-    $containerPath = $null
-    $privateKeyPath = Join-Path -Path $PSScriptRoot -ChildPath 'Certificates\CarbonTestPrivateKey.pfx' -Resolve
 }
 
 Describe 'Revoke-CPermission' {
@@ -55,7 +47,8 @@ Describe 'Revoke-CPermission' {
                 $result = Revoke-CPermission -Path $script:testDirPath -Identity $_.IdentityReference
                 $Global:Error.Count | Should -Be 0
                 $result | Should -BeNullOrEmpty
-                (Test-CPermission -Identity $_.IdentityReference -Path $script:testDirPath -Inherited -Permission $_.FileSystemRights) | Should -BeTrue
+                (Test-CPermission -Identity $_.IdentityReference -Path $script:testDirPath -Inherited -Permission $_.FileSystemRights) |
+                    Should -BeTrue
             }
     }
 
@@ -101,72 +94,4 @@ Describe 'Revoke-CPermission' {
             Remove-Item $regKey
         }
     }
-
-    It 'should revoke local machine private key permissions' {
-        $cert = Install-CCertificate -Path $privateKeyPath -StoreLocation LocalMachine -StoreName My -PassThru
-        try
-        {
-            $certPath = Join-Path -Path 'cert:\LocalMachine\My' -ChildPath $cert.Thumbprint
-            Grant-CPermission -Path $certPath -Identity $script:username -Permission 'FullControl'
-            (Get-CPermission -Path $certPath -Identity $script:username) | Should -Not -BeNullOrEmpty
-            Revoke-CPermission -Path $certPath -Identity $script:username
-            $Global:Error.Count | Should -Be 0
-            (Get-CPermission -Path $certPath -Identity $script:username) | Should -BeNullOrEmpty
-        }
-        finally
-        {
-            Uninstall-CCertificate -Thumbprint $cert.Thumbprint -StoreLocation LocalMachine -StoreName My
-        }
-    }
-
-    It 'should revoke current user private key permissions' {
-        $cert = Install-CCertificate -Path $privateKeyPath -StoreLocation CurrentUser -StoreName My -PassThru
-        try
-        {
-            $certPath = Join-Path -Path 'cert:\CurrentUser\My' -ChildPath $cert.Thumbprint
-            Grant-CPermission -Path $certPath -Identity $script:username -Permission 'FullControl' -WhatIf
-            $Global:Error.Count | Should -Be 0
-            (Get-CPermission -Path $certPath -Identity $script:username) | Should -BeNullOrEmpty
-        }
-        finally
-        {
-            Uninstall-CCertificate -Thumbprint $cert.Thumbprint -StoreLocation CurrentUser -StoreName My
-        }
-    }
-
-    It 'should support what if when revoking private key permissions' {
-        $cert = Install-CCertificate -Path $privateKeyPath -StoreLocation LocalMachine -StoreName My -PassThru
-        try
-        {
-            $certPath = Join-Path -Path 'cert:\LocalMachine\My' -ChildPath $cert.Thumbprint
-            Grant-CPermission -Path $certPath -Identity $script:username -Permission 'FullControl'
-            (Get-CPermission -Path $certPath -Identity $script:username) | Should -Not -BeNullOrEmpty
-            Revoke-CPermission -Path $certPath -Identity $script:username -WhatIf
-            $Global:Error.Count | Should -Be 0
-            (Get-CPermission -Path $certPath -Identity $script:username) | Should -Not -BeNullOrEmpty
-        }
-        finally
-        {
-            Uninstall-CCertificate -Thumbprint $cert.Thumbprint -StoreLocation LocalMachine -StoreName My
-        }
-    }
-
-    It 'revokes permission on cng certificate' {
-        $cngCertPath = Join-Path -Path $PSScriptRoot -ChildPath 'Certificates\CarbonRsaCng.pfx' -Resolve
-        $cert = Install-CCertificate -Path $cngCertPath -StoreLocation LocalMachine -StoreName My -PassThru
-        try
-        {
-            $certPath = Join-Path -Path 'cert:\LocalMachine\My' -ChildPath $cert.Thumbprint
-            Grant-CPermission -Path $certPath -Identity $script:username -Permission 'FullControl'
-            Get-CPermission -Path $certPath -Identity $script:username | Should -Not -BeNullOrEmpty
-            Revoke-CPermission -Path $certPath -Identity $script:username
-            $Global:Error.Count | Should -Be 0
-            Get-CPermission -Path $certPath -Identity $script:username | Should -BeNullOrEmpty
-        }
-        finally
-        {
-            Uninstall-CCertificate -Thumbprint $cert.Thumbprint -StoreLocation LocalMachine -StoreName My
-        }
-    }
-
 }

@@ -10,10 +10,6 @@ BeforeAll {
     & (Join-Path -Path $PSScriptRoot -ChildPath 'Initialize-Test.ps1' -Resolve)
 
     $psModulesPath = Join-Path -Path $PSScriptRoot -ChildPath '..\PSModules' -Resolve
-    Import-Module -Name (Join-Path -Path $psModulesPath -ChildPath 'Carbon.Cryptography' -Resolve) `
-                  -Function ('Install-CCertificate', 'Uninstall-CCertificate') `
-                  -Global `
-                  -Verbose:$false
     Import-Module -Name (Join-Path -Path $psModulesPath -ChildPath 'Carbon.Registry' -Resolve) `
                   -Function @('Install-CRegistryKey') `
                   -Global `
@@ -22,8 +18,6 @@ BeforeAll {
     $script:identity = 'CarbonTestUser'
     $script:tempDir = Join-Path -Path $env:TEMP -ChildPath "Carbon-Test-CPermission-$([IO.Path]::GetRandomFileName())"
     New-Item (Join-Path -path $script:tempDir -ChildPath 'File') -ItemType File -Force
-
-    $script:privateKeyPath = Join-Path -Path $PSScriptRoot -ChildPath 'Certificates\CarbonTestPrivateKey.pfx' -Resolve
 
     $script:dirPath = Join-Path -Path $script:tempDir -ChildPath 'Directory'
     $script:filePath = Join-Path -Path $script:dirPath -ChildPath 'File'
@@ -47,7 +41,6 @@ BeforeAll {
         Identity = $script:identity;
     }
 
-
     $script:testFilePermArgs = @{
         Path = $script:filePath;
         Identity = $script:identity;
@@ -67,7 +60,8 @@ Describe 'Test-CPermission' {
     It 'should handle non existent path' {
         Test-CPermission -Path 'C:\I\Do\Not\Exist' -Identity $script:identity -Permission 'FullControl' -ErrorAction SilentlyContinue |
             Should -BeNullOrEmpty
-        $Global:Error | Should -HaveCount 2
+        $Global:Error | Should -HaveCount 1
+        $Global:Error | Should -Match 'path does not exist'
     }
 
     It 'should check ungranted permission on file system' {
@@ -113,7 +107,7 @@ Describe 'Test-CPermission' {
                          -WarningAction SilentlyContinue |
             Should -BeTrue
         $warning | Should -Not -BeNullOrEmpty
-        $warning[0] | Should -BeLike 'Can''t test "applies to" flags on a leaf.*'
+        $warning[0] | Should -Match 'test "applies to" flags on path.*because it is a file'
     }
 
     It 'should check ungranted permission on registry' {
@@ -139,47 +133,5 @@ Describe 'Test-CPermission' {
         Test-CPermission @testDirPermArgs -Permission 'ReadAndExecute' -ApplyTo LeavesOnly | Should -BeTrue
         Test-CPermission @testDirPermArgs -Permission 'ReadAndExecute' -ApplyTo LeavesOnly -OnlyApplyToChildren |
             Should -BeFalse
-    }
-
-    It 'should check permission on private key' {
-        $cert = Install-CCertificate -Path $script:privateKeyPath -StoreLocation LocalMachine -StoreName My -PassThru
-        try
-        {
-            $certPath = Join-Path -Path 'cert:\LocalMachine\My' -ChildPath $cert.Thumbprint
-            # PowerShell (Core) uses file system rights on private keys, not crypto key rights.
-            $allPerm = 'FullControl'
-            $readPerm = 'Read'
-            if ([Type]::GetType('System.Security.AccessControl.CryptoKeyAccessRule'))
-            {
-                $allPerm = 'GenericAll'
-                $readPerm = 'GenericRead'
-            }
-            Grant-CPermission -Path $certPath -Identity $script:identity -Permission $allPerm
-            Test-CPermission -Path $certPath -Identity $script:identity -Permission $readPerm | Should -BeTrue
-            Test-CPermission -Path $certPath -Identity $script:identity -Permission $readPerm -Strict |
-                Should -BeFalse
-            Test-CPermission -Path $certPath -Identity $script:identity -Permission $allPerm, $readPerm -Strict |
-                Should -BeTrue
-        }
-        finally
-        {
-            Uninstall-CCertificate -Thumbprint $cert.Thumbprint -StoreLocation LocalMachine -StoreName My
-        }
-    }
-
-    $script:usesFileSystemPermsOnPrivateKeys =
-        $null -eq [Type]::GetType('System.Security.AccessControl.CryptoKeyAccessRule')
-    It 'should check permission on public key' -Skip:$script:usesFileSystemPermsOnPrivateKeys {
-        $cert =
-            Get-Item -Path 'Cert:\*\*' |
-            Where-Object 'Name' -NE 'UserDS' | # This store causes problems on PowerShell 7.
-            Get-ChildItem |
-            Where-Object { -not $_.HasPrivateKey } |
-            Select-Object -First 1
-        $cert | Should -Not -BeNullOrEmpty
-        $certPath = Join-Path -Path 'cert:\' -ChildPath (Split-Path -NoQualifier -Path $cert.PSPath)
-        Get-CPermission -path $certPath -Identity $script:identity | Out-String | Write-Host
-        Test-CPermission -Path $certPath -Identity $script:identity -Permission 'FullControl' | Should -BeTrue
-        Test-CPermission -Path $certPath -Identity $script:identity -Permission 'FullControl' -Strict | Should -BeTrue
     }
 }

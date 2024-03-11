@@ -5,10 +5,6 @@
       "Version": "2.*"
     },
     {
-      "Name": "Carbon.Cryptography",
-      "Version": "3.*"
-    },
-    {
       "Name": "Carbon.Registry",
       "Version": "1.*"
     }

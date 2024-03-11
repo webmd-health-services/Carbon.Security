@@ -3,11 +3,11 @@ function Test-CPermission
 {
     <#
     .SYNOPSIS
-    Tests permissions on a file, directory, registry key, or certificate private key/key container.
+    Tests permissions on a file, directory, or registry key
 
     .DESCRIPTION
-    The `Test-CPermission` function tests if permissions are granted to a user or group on a file, directory, registry
-    key, or certificate private key/key container. Using this function and module are not recommended. Instead,
+    The `Test-CPermission` function tests if permissions are granted to a user or group on a file, directory, or
+    registry key. Using this function and module are not recommended. Instead,
 
     * for file directory permissions, use `Test-CNtfsPermission` in the `Carbon.FileSystem` module.
     * for registry permissions, use `Test-CRegistryPermission` in the `Carbon.Registry` module.
@@ -19,15 +19,12 @@ function Test-CPermission
     function returns `true`. Otherwise it returns `false`.
 
     The `Permissions` attribute should be a list of
-    [FileSystemRights](http://msdn.microsoft.com/en-us/library/system.security.accesscontrol.filesystemrights.aspx),
-    [RegistryRights](http://msdn.microsoft.com/en-us/library/system.security.accesscontrol.registryrights.aspx), or
-    [CryptoKeyRights](http://msdn.microsoft.com/en-us/library/system.security.accesscontrol.cryptokeyrights.aspx), for
-    files/directories, registry keys, and certificate private keys, respectively. These commands will show you the
-    values for the appropriate permissions for your object:
+    [FileSystemRights](http://msdn.microsoft.com/en-us/library/system.security.accesscontrol.filesystemrights.aspx) or
+    [RegistryRights](http://msdn.microsoft.com/en-us/library/system.security.accesscontrol.registryrights.aspx). These
+    commands will show you the values for the appropriate permissions for your object:
 
         [Enum]::GetValues([Security.AccessControl.FileSystemRights])
         [Enum]::GetValues([Security.AccessControl.RegistryRights])
-        [Enum]::GetValues([Security.AccessControl.CryptoKeyRights])
 
     Extra/additional permissions on the item are ignored. To check that the user/group has the exact permissions passed
     to the `Permission` parameter, use the `Strict` switch.
@@ -54,7 +51,6 @@ function Test-CPermission
     | SubcontainersOnly               | true                | ContainerInherit                | NoPropagateInherit, InheritOnly
     | LeavesOnly                      | true                | ObjectInherit                   | NoPropagateInherit, InheritOnly
 
-
     By default, inherited permissions are ignored. To check inherited permission, use the `-Inherited` switch.
 
     .OUTPUTS
@@ -75,9 +71,6 @@ function Test-CPermission
     .LINK
     http://msdn.microsoft.com/en-us/library/system.security.accesscontrol.registryrights.aspx
 
-    .LINK
-    http://msdn.microsoft.com/en-us/library/system.security.accesscontrol.cryptokeyrights.aspx
-
     .EXAMPLE
     Test-CPermission -Identity 'STARFLEET\JLPicard' -Permission 'FullControl' -Path 'C:\Enterprise\Bridge'
 
@@ -92,17 +85,10 @@ function Test-CPermission
     Test-CPermission -Identity 'STARFLEET\Worf' -Permission 'Write' -ApplyTo 'Container' -Path 'C:\Enterprise\Brig'
 
     Demonstrates how to test for inheritance/propogation flags, in addition to permissions.
-
-    .EXAMPLE
-    Test-CPermission -Identity 'STARFLEET\Data' -Permission 'GenericWrite' -Path 'cert:\LocalMachine\My\1234567890ABCDEF1234567890ABCDEF12345678'
-
-    Demonstrates how to test for permissions on a certificate's private key/key container. If the certificate doesn't
-    have a private key, returns `$true`.
     #>
     [CmdletBinding(DefaultParameterSetName='ExcludeApplyTo')]
     param(
-        # The path on which the permissions should be checked.  Can be a file system or registry path. For certificate
-        # private keys, pass a certificate provider path, e.g. `cert:`.
+        # The path on which the permissions should be checked.  Can be a file system or registry path.
         [Parameter(Mandatory)]
         [String] $Path,
 
@@ -139,94 +125,69 @@ function Test-CPermission
     Set-StrictMode -Version 'Latest'
     Use-CallerPreference -Cmdlet $PSCmdlet -Session $ExecutionContext.SessionState
 
-    $originalPath = $Path
-    $Path = Resolve-Path -Path $Path -ErrorAction 'SilentlyContinue'
-    if( -not $Path -or -not (Test-Path -Path $Path) )
+    $rArgs = Resolve-Arg -Path $Path `
+                         -Identity $Identity `
+                         -Permission $Permission `
+                         -ApplyTo $ApplyTo `
+                         -OnlyApplyToChildren:$OnlyApplyToChildren `
+                         -Action 'test'
+    if (-not $rArgs)
     {
-        if( -not $Path )
-        {
-            $Path = $originalPath
-        }
-        Write-Error ('Unable to test {0}''s {1} permissions: path ''{2}'' not found.' -f $Identity,($Permission -join ','),$Path)
         return
     }
 
-    $providerName = Get-CPathProvider -Path $Path | Select-Object -ExpandProperty 'Name'
-    if( $providerName -eq 'Certificate' )
-    {
-        $providerName = 'CryptoKey'
-        # CryptoKey does not exist in .NET standard/core so we will have to use FileSystem instead
-        if( -not (Test-CCryptoKeyAvailable) )
-        {
-            $providerName = 'FileSystem'
-        }
-    }
+    $providerName = $rArgs.ProviderName
+    $rights = $rArgs.Rights
+    $inheritanceFlags = $rArgs.InheritanceFlags
+    $propagationFlags = $rArgs.PropagationFlags
 
-    if (($providerName -eq 'FileSystem' -or $providerName -eq 'CryptoKey') -and $Strict)
+    if ($providerName -eq 'FileSystem' -and $Strict)
     {
         # Synchronize is always on and can't be turned off.
-        $Permission += 'Synchronize'
-    }
-    $rights = $Permission | ConvertTo-CProviderAccessControlRights -ProviderName $providerName
-    if( -not $rights )
-    {
-        Write-Error ('Unable to test {0}''s {1} permissions on {2}: received an unknown permission.' -f $Identity,$Permission,$Path)
-        return
+        $rights = $rights -bor [FileSystemRights]::Synchronize
     }
 
-    $rightsPropertyName = "${providerName}Rights"
-    $isLeaf = (Test-Path -Path $Path -PathType Leaf)
-
-    $testFlags = $PSCmdlet.ParameterSetName -eq 'IncludeApplyTo'
-    $flags = $null
-    if ($testFlags)
+    foreach ($currentPath in $rArgs.Paths)
     {
-        $flags = ConvertTo-Flags -ApplyTo $ApplyTo -OnlyApplyToChildren:$OnlyApplyToChildren
-    }
+        $isLeaf = (Test-Path -LiteralPath $currentPath -PathType Leaf)
+        $testFlags = $PSCmdlet.ParameterSetName -eq 'IncludeApplyTo'
 
-    if ($isLeaf -and $testFlags)
-    {
-        $msg = 'Can''t test "applies to" flags on a leaf. Please omit "ApplyTo" and "OnlyApplyToChildren" parameters ' +
-               'when "Path" is a leaf.'
-        Write-Warning $msg
-    }
-
-    if( $providerName -eq 'CryptoKey' )
-    {
-        # If the certificate doesn't have a private key, return $true.
-        if( (Get-Item -Path $Path | Where-Object { -not $_.HasPrivateKey } ) )
+        if ($isLeaf -and $testFlags)
         {
-            return $true
-        }
-    }
-
-
-    $acl =
-        Get-CPermission -Path $Path -Identity $Identity -Inherited:$Inherited |
-        Where-Object 'AccessControlType' -eq 'Allow' |
-        Where-Object 'IsInherited' -eq $Inherited |
-        Where-Object {
-            if ($Strict)
-            {
-                return ($_.$rightsPropertyName -eq $rights)
-            }
-
-            return ($_.$rightsPropertyName -band $rights) -eq $rights
-        } |
-        Where-Object {
-            if ($isLeaf -or -not $testFlags)
-            {
-                return $true
-            }
-
-            return $_.InheritanceFlags -eq $flags.InheritanceFlags -and $_.PropagationFlags -eq $flags.PropagationFlags
+            $msg = "Failed to test ""applies to"" flags on path ""${currentPath}"" because it is a file. Please omit " +
+                   '"ApplyTo" and "OnlyApplyToChildren" parameters when testing permissions on a file.'
+            Write-Warning $msg
         }
 
-    if ($acl)
-    {
-        return $true
-    }
+        $rightsPropertyName = "${providerName}Rights"
+        $acl =
+            Get-CPermission -Path $currentPath -Identity $Identity -Inherited:$Inherited |
+            Where-Object 'AccessControlType' -eq 'Allow' |
+            Where-Object 'IsInherited' -eq $Inherited |
+            Where-Object {
+                if ($Strict)
+                {
+                    return ($_.$rightsPropertyName -eq $rights)
+                }
 
-    return $false
+                return ($_.$rightsPropertyName -band $rights) -eq $rights
+            } |
+            Where-Object {
+                if ($isLeaf -or -not $testFlags)
+                {
+                    return $true
+                }
+
+                return $_.InheritanceFlags -eq $inheritanceFlags -and $_.PropagationFlags -eq $propagationFlags
+            }
+
+        if ($acl)
+        {
+            $true | Write-Output
+            continue
+        }
+
+        $false | Write-Output
+    }
 }
 
