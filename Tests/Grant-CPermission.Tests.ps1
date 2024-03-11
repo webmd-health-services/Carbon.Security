@@ -9,7 +9,7 @@ BeforeAll {
 
     & (Join-Path -Path $PSScriptRoot -ChildPath 'Initialize-Test.ps1' -Resolve)
 
-    $psModulesSharedPath = Join-Path -Path $PSScriptRoot -ChildPath '..\Carbon.Permissions\Modules' -Resolve
+    $psModulesSharedPath = Join-Path -Path $PSScriptRoot -ChildPath '..\Carbon.Security\Modules' -Resolve
     Import-Module -Name (Join-Path -Path $psModulesSharedPath -ChildPath 'Carbon.Core' -Resolve) `
                   -Function ('Get-CPathProvider') `
                   -Global `
@@ -394,11 +394,11 @@ Describe 'Grant-CPermission' {
         Invoke-GrantPermissions -Identity $script:user -Permission FullControl -Path $containerPath
         ThenPermission -On $containerPath -For $script:user -Is ([FileSystemRights]::FullControl)
 
-        Mock -CommandName 'Set-Acl' -Verifiable -ModuleName 'Carbon.Permissions'
+        Mock -CommandName 'Set-Acl' -Verifiable -ModuleName 'Carbon.Security'
 
         Invoke-GrantPermissions -Identity $script:user -Permission FullControl -Path $containerPath
         ThenPermission -On $containerPath -For $script:user -Is ([FileSystemRights]::FullControl)
-        Should -Invoke 'Set-Acl' -Times 0 -ModuleName 'Carbon.Permissions'
+        Should -Invoke 'Set-Acl' -Times 0 -ModuleName 'Carbon.Security'
     }
 
     It 'when forcing a permission change and the user already has the permissions' {
@@ -415,7 +415,7 @@ Describe 'Grant-CPermission' {
                        -HasInheritanceFlags [InheritanceFlags]::ObjectInherit `
                        -HasPropagationFlags [PropagationFlags]::NoPropagateInherit
 
-        Mock -CommandName 'Set-Acl' -Verifiable -ModuleName 'Carbon.Permissions'
+        Mock -CommandName 'Set-Acl' -Verifiable -ModuleName 'Carbon.Security'
 
         Grant-CPermission -Identity $script:user `
                           -Permission FullControl `
@@ -423,7 +423,7 @@ Describe 'Grant-CPermission' {
                           -ApplyTo ContainerAndLeaves `
                           -Force
 
-        Should -Invoke 'Set-Acl' -Times 1 -Exactly -ModuleName 'Carbon.Permissions'
+        Should -Invoke 'Set-Acl' -Times 1 -Exactly -ModuleName 'Carbon.Security'
     }
 
     It 'when an item is hidden' {

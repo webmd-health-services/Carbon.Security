@@ -6,11 +6,11 @@ Build:
 
 - PowerShell:
     ExceptDuring: Clean
-    WorkingDirectory: Carbon.Permissions
+    WorkingDirectory: Carbon.Security
     ScriptBlock: prism install | Format-Table -Auto
 
 - Version:
-    Path: Carbon.Permissions\Carbon.Permissions.psd1
+    Path: Carbon.Security\Carbon.Security.psd1
     Prerelease:
     - main: ""
     - "*": rc$(WHISKEY_BUILD_NUMBER)
@@ -27,10 +27,10 @@ Build:
 - MergeFile:
     OnlyBy: BuildServer
     # Builds run twice on some serves. Only run this step if the module hasn't been merged yet.
-    IfExists: Carbon.Permissions\Functions\*.ps1
+    IfExists: Carbon.Security\Functions\*.ps1
     Path:
-    - Carbon.Permissions\Functions\*.ps1
-    DestinationPath: Carbon.Permissions\Carbon.Permissions.psm1
+    - Carbon.Security\Functions\*.ps1
+    DestinationPath: Carbon.Security\Carbon.Security.psm1
     DeleteSourceFiles: true
     TextSeparator: "$(NewLine)$(NewLine)"
 
@@ -48,12 +48,12 @@ Build:
     - README.md
     - LICENSE.txt
     - NOTICE.txt
-    DestinationDirectory: Carbon.Permissions
+    DestinationDirectory: Carbon.Security
 
 - Zip:
-    ArchivePath: .output\Carbon.Permissions-$(WHISKEY_SEMVER2).zip
+    ArchivePath: .output\Carbon.Security-$(WHISKEY_SEMVER2).zip
     Path:
-    - Carbon.Permissions
+    - Carbon.Security
     Exclude:
     - "*.pdb"
     - "*.orig"
@@ -61,17 +61,17 @@ Build:
 - Exec:
     OnlyBy: BuildServer
     Path: appveyor
-    Argument: [ 'PushArtifact', '.output/Carbon.Permissions-$(WHISKEY_SEMVER2).zip', '-DeploymentName', 'GitHub' ]
+    Argument: [ 'PushArtifact', '.output/Carbon.Security-$(WHISKEY_SEMVER2).zip', '-DeploymentName', 'GitHub' ]
 
 - PublishPowerShellModule:
-    Path: Carbon.Permissions
+    Path: Carbon.Security
 
 - Exec:
     OnlyBy: BuildServer
     Path: appveyor
     Argument: [
         'PushArtifact',
-        '.output/Carbon.Permissions.$(WHISKEY_SEMVER2_NO_BUILD_METADATA).nupkg',
+        '.output/Carbon.Security.$(WHISKEY_SEMVER2_NO_BUILD_METADATA).nupkg',
         '-DeploymentName',
         'PowerShellGallery'
     ]
@@ -85,6 +85,6 @@ Build:
         TestResult:
             Enabled: true
             OutputPath: .output\pester.xml
-            TestSuiteName: Carbon.Permissions
+            TestSuiteName: Carbon.Security
         Output:
             Verbosity: Detailed
