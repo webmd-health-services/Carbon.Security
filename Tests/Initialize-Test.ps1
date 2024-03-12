@@ -31,8 +31,8 @@ try
     Remove-Module -Name 'Carbon' -Force -ErrorAction Ignore
 
     $modules = [ordered]@{
-        'Carbon.Permissions' = '..\Carbon.Permissions';
-        'Carbon.PermissionsTestHelper' = 'Carbon.PermissionsTestHelper';
+        'Carbon.Security' = '..\Carbon.Security';
+        'Carbon.SecurityTestHelper' = 'Carbon.SecurityTestHelper';
     }
     foreach( $moduleName in $modules.Keys )
     {

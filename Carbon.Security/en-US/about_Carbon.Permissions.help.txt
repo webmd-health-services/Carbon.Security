@@ -1,0 +1,30 @@
+TOPIC
+    about_Carbon.Security
+
+SHORT DESCRIPTION
+    The "Carbon.Security" module has a `Get-CAcl` function that gets an item's ACL that works across PowerShell
+    editions.
+
+LONG DESCRIPTION
+    SYSTEM REQUIREMENTS
+
+    * Windows PowerShell 5.1 and .NET 4.6.1+
+    * PowerShell 7+
+
+
+    INSTALLING
+
+    To install globally:
+
+        Install-Module -Name 'Carbon.Security'
+        Import-Module -Name 'Carbon.Security'
+
+    To install privately:
+
+        Save-Module -Name 'Carbon.Security' -Path '.'
+        Import-Module -Name '.\Carbon.Security'
+
+
+    COMMANDS
+
+    * `Get-CAcl`: Gets the access control (i.e. security descriptor) for a file, directory, or registry key.

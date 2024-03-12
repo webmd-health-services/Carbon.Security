@@ -27,11 +27,11 @@ Describe 'Revoke-CPermission' {
     It 'when user has multiple access control entries on an item' {
         Grant-CPermission -Path $script:testDirPath -Identity $script:username -Permission 'Read'
         $perm = Get-CPermission -Path $script:testDirPath -Identity $script:username
-        Mock -CommandName 'Get-CPermission' -ModuleName 'Carbon.Permissions' -MockWith { $perm ; $perm }.GetNewClosure()
+        Mock -CommandName 'Get-CPermission' -ModuleName 'Carbon.Security' -MockWith { $perm ; $perm }.GetNewClosure()
         $Global:Error.Clear()
         Revoke-CPermission -Path $script:testDirPath -Identity $script:username
         $Global:Error | Should -BeNullOrEmpty
-        Carbon.Permissions\Get-CPermission -Path $script:testDirPath -Identity $script:username | Should -BeNullOrEmpty
+        Carbon.Security\Get-CPermission -Path $script:testDirPath -Identity $script:username | Should -BeNullOrEmpty
     }
 
     It 'should revoke permission' {

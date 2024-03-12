@@ -1,8 +1,8 @@
 /.output
 /PSModules
 /.vscode
-/Carbon.Permissions/CHANGELOG.md
-/Carbon.Permissions/LICENSE.txt
-/Carbon.Permissions/NOTICE.txt
-/Carbon.Permissions/README.md
-/Carbon.Permissions/Modules/
+/Carbon.Security/CHANGELOG.md
+/Carbon.Security/LICENSE.txt
+/Carbon.Security/NOTICE.txt
+/Carbon.Security/README.md
+/Carbon.Security/Modules/

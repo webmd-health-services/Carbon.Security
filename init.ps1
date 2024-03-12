@@ -1,10 +1,10 @@
 <#
 .SYNOPSIS
-Gets your computer ready to develop the Carbon.Permissions module.
+Gets your computer ready to develop the Carbon.Security module.
 
 .DESCRIPTION
 The init.ps1 script makes the configuraion changes necessary to get your computer ready to develop for the
-Carbon.Permissions module. It:
+Carbon.Security module. It:
 
 
 .EXAMPLE

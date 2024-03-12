@@ -1,11 +1,10 @@
 <!-- markdownlint-disable MD012 no-multiple-blanks -->
-# Carbon.Permissions PowerShell Module
+# Carbon.Security PowerShell Module
 
 
 ## Overview
 
-The "Carbon.Permissions" module manages permissions on files, directories, registry keys, and certificate private
-keys/key containers.
+The "Carbon.Security" module has a function get an ACLs that works across PowerShell editions.
 
 
 ## System Requirements
@@ -19,23 +18,17 @@ keys/key containers.
 To install globally:
 
 ```powershell
-Install-Module -Name 'Carbon.Permissions'
-Import-Module -Name 'Carbon.Permissions'
+Install-Module -Name 'Carbon.Security'
+Import-Module -Name 'Carbon.Security'
 ```
 
 To install privately:
 
 ```powershell
-Save-Module -Name 'Carbon.Permissions' -Path '.'
-Import-Module -Name '.\Carbon.Permissions'
+Save-Module -Name 'Carbon.Security' -Path '.'
+Import-Module -Name '.\Carbon.Security'
 ```
 
 ## Commands
 
 * `Get-CAcl`: Gets the access control (i.e. security descriptor) for a file, directory, or registry key.
-* `Get-CPermission`: Gets the permissions (access control rules) for a file, directory, registry key, or certificate
-  private key/key container.
-* `Grant-CPermission`: Grants permissions on a file, directory, registry key, or certificate private key/key container.
-* `Revoke-CPermission`: Revokes permissions on a file, directory, registry key, or certificate private key/key
-  container.
-* `Test-CPermission`: Tests permissions on a file, directory, registry key, or certificate private key/key container.
