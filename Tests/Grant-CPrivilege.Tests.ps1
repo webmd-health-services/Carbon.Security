@@ -1,74 +1,80 @@
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-# 
-#     http://www.apache.org/licenses/LICENSE-2.0
-# 
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
-$username = 'CarbonGrantPrivilege' 
-$password = 'a1b2c3d4#'
+#Requires -Version 5.1
+#Requires -RunAsAdministrator
+Set-StrictMode -Version 'Latest'
 
-function Start-TestFixture
-{
-    & (Join-Path -Path $PSScriptRoot -ChildPath '..\Initialize-CarbonTest.ps1' -Resolve)
+BeforeAll {
+    Set-StrictMode -Version 'Latest'
+
+    & (Join-Path -Path $PSScriptRoot -ChildPath 'Initialize-Test.ps1' -Resolve)
+
+    Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath '..\PSModules\Carbon' -Resolve) `
+                  -Function @('Install-CService', 'Install-CUser', 'Uninstall-CUser', 'Uninstall-CService') `
+                  -Verbose:$false
+
+    $script:testDirPath = ''
+    $script:testNum = 0
+    $script:serviceName = 'CarbonGrantPrivilege'
+    $script:username = 'CarbonGrantPrivilege'
+    $script:password = 'a1b2c3d4#'
+    $script:credential =
+        [pscredential]::New($script:username, (ConvertTo-SecureString -String $script:password -AsPlainText -Force))
+    Install-CUser -Credential $script:credential `
+                    -Description 'Account for testing Carbon Grant-CPrivilege function.'
 }
 
-function Start-Test
-{
-    Install-User -Username $username -Password $password -Description 'Account for testing Carbon Grant-Privileges functions.'
+AfterAll {
+    Uninstall-CUser -Username $script:username
 }
 
-function Stop-Test
-{
-    Uninstall-User -Username $username
-}
+Describe 'Grant-CPrivilege' {
 
-function Test-ShouldGrantAndRevokePrivileges
-{
-    $serviceName = 'CarbonGrantPrivilege' 
-    $servicePath = Join-Path $TestDir ..\Service\NoOpService.exe -Resolve
-    Install-Service -Name $serviceName -Path $servicePath -StartupType Manual -Username $username -Password $password
-    
-    Stop-Service $serviceName
-    
-    Revoke-Privilege -Identity $username -Privilege SeServiceLogonRight
-    Assert-False (Test-Privilege -Identity $username -Privilege SeServiceLogonRight)
-    Assert-Null (Get-Privilege -Identity $username | Where-Object { $_ -eq 'SeServiceLogonRight' })
-    
-    Grant-Privilege -Identity $username -Privilege SeServiceLogonRight
-    Assert-True (Test-Privilege -Identity $username -Privilege SeServiceLogonRight)
-    Assert-NotNull (Get-Privilege -Identity $username | Where-Object { $_ -eq 'SeServiceLogonRight' })
-    
-    Start-Service $serviceName
-    
-    Revoke-Privilege -Identity $username -Privilege SeServiceLogonRight
-    Assert-False (Test-Privilege -Identity $username -Privilege SeServiceLogonRight)
-    Assert-Null (Get-Privilege -Identity $username | Where-Object { $_ -eq 'SeServiceLogonRight' })
-    
-    $error.Clear()
-    Start-Service $serviceName -ErrorAction SilentlyContinue
-    Assert-Equal 0 $error.Count
-    
-}
+    BeforeEach {
+        $script:testDirPath = Join-Path -Path $TestDrive -ChildPath ($script:testNum++)
+        New-Item -Path $script:testDirPath -ItemType 'Directory'
+        Copy-Item -Path (Join-Path -Path $PSScriptRoot -ChildPath 'NoOpService.exe' -Resolve) `
+                  -Destination $script:testDirPath
+        $servicePath = Join-Path -Path $script:testDirPath -ChildPath 'NoOpService.exe' -Resolve
+        Install-CService -Name $script:serviceName -Path $servicePath -StartupType Manual -Credential $script:credential
+        $Global:Error.Clear()
+    }
 
-function Test-ShouldWriteAnErrorIfIdentityNotFound
-{
-    $error.Clear()
-    Grant-Privilege -Identity 'IDNOTEXIST' -Privilege SeBatchLogonRight -ErrorAction SilentlyContinue
-    Assert-True ($error.Count -gt 0)
-    Assert-True ($error[0].Exception.Message -like '*Identity * not found*')
-}
+    AfterEach {
+        Uninstall-CService -Name $script:serviceName
+    }
 
-function Test-ShouldGrantCaseSensitivePermission
-{
-    $Error.Clear()
-    Grant-Privilege -Identity $username -Privilege SESERVICELOGONRIGHT -ErrorAction SilentlyContinue
-    Assert-GreaterThan $Error.Count 1
-    Assert-Like $Error[0].Exception.Message '*case-sensitive*'
-}
+    It 'grants and revoke privileges' {
+        Revoke-CPrivilege -Identity $script:username -Privilege SeServiceLogonRight
+        (Test-CPrivilege -Identity $script:username -Privilege SeServiceLogonRight) | Should -BeFalse
+        (Get-CPrivilege -Identity $script:username | Where-Object { $_ -eq 'SeServiceLogonRight' }) |
+            Should -BeNullOrEmpty
 
+        Grant-CPrivilege -Identity $script:username -Privilege SeServiceLogonRight
+        (Test-CPrivilege -Identity $script:username -Privilege SeServiceLogonRight) | Should -BeTrue
+        (Get-CPrivilege -Identity $script:username | Where-Object { $_ -eq 'SeServiceLogonRight' }) |
+            Should -Not -BeNullOrEmpty
+
+        Start-Service $serviceName
+
+        Revoke-CPrivilege -Identity $script:username -Privilege SeServiceLogonRight
+        (Test-CPrivilege -Identity $script:username -Privilege SeServiceLogonRight) | Should -BeFalse
+        (Get-CPrivilege -Identity $script:username | Where-Object { $_ -eq 'SeServiceLogonRight' }) |
+            Should -BeNullOrEmpty
+
+        Start-Service $serviceName -ErrorAction SilentlyContinue
+        $Global:Error | Should -BeNullOrEmpty
+    }
+
+    It 'writes an error if identity not found' {
+        Grant-CPrivilege -Identity 'IDNOTEXIST' -Privilege SeBatchLogonRight -ErrorAction SilentlyContinue
+        ($Global:Error.Count -gt 0) | Should -BeTrue
+        ($Global:Error[0].Exception.Message -like '*Identity * not found*') | Should -BeTrue
+    }
+
+    It 'grants case sensitive permission' {
+        Grant-CPrivilege -Identity $script:username -Privilege SESERVICELOGONRIGHT -ErrorAction SilentlyContinue
+        $Global:Error.Count | Should -BeGreaterThan 1
+        $Global:Error[0].Exception.Message | Should -BeLike '*case-sensitive*'
+    }
+
+}

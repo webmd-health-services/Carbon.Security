@@ -1,57 +1,52 @@
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-# 
-#     http://www.apache.org/licenses/LICENSE-2.0
-# 
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+#Requires -Version 5.1
+#Requires -RunAsAdministrator
+Set-StrictMode -Version 'Latest'
 
-$username = 'CarbonRevokePrivileg' 
-$password = 'a1b2c3d4#'
+BeforeAll {
+    Set-StrictMode -Version 'Latest'
 
-function Start-TestFixture
-{
-    & (Join-Path -Path $PSScriptRoot -ChildPath '..\Initialize-CarbonTest.ps1' -Resolve)
+    & (Join-Path -Path $PSScriptRoot -ChildPath 'Initialize-Test.ps1' -Resolve)
+
+    Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath '..\PSModules\Carbon' -Resolve) `
+                  -Function @('Install-CUser', 'Uninstall-CUser') `
+                  -Verbose:$false
+
+    $script:username = 'CarbonRevokePrivileg'
+    $script:password = 'a1b2c3d4#'
+    $script:credential =
+        [pscredential]::New($script:username, (ConvertTo-SecureString -String $script:password -AsPlainText -Force))
+    Install-CUser -Credential $script:credential -Description 'Account for testing Carbon Revoke-CPrivilege function.'
 }
 
-function Start-Test
-{
-    Install-User -Username $username -Password $password -Description 'Account for testing Carbon Revoke-Privileges functions.'
-    
-    Grant-Privilege -Identity $username -Privilege 'SeBatchLogonRight'
-    Assert-True (Test-Privilege -Identity $username -Privilege 'SeBatchLogonRight')
+AfterAll {
+    Uninstall-CUser -Username $script:username
 }
 
-function Stop-Test
-{
-    Uninstall-User -Username $username
-}
+Describe 'Revoke-CPrivilege' {
+    BeforeEach {
+        Grant-CPrivilege -Identity $script:username -Privilege 'SeBatchLogonRight'
+        (Test-CPrivilege -Identity $script:username -Privilege 'SeBatchLogonRight') | Should -Be $true
+        $Global:Error.Clear()
+    }
 
-function Test-ShouldNotRevokePrivilegeForNonExistentUser
-{
-    $error.Clear()
-    Revoke-Privilege -Identity 'IDNOTEXIST' -Privilege SeBatchLogonRight -ErrorAction SilentlyContinue
-    Assert-True ($error.Count -gt 0)
-    Assert-True ($error[0].Exception.Message -like '*Identity * not found*')
-}
+    It 'revokes privilege for non existent user' {
+        Revoke-CPrivilege -Identity 'IDNOTEXIST' -Privilege SeBatchLogonRight -ErrorAction SilentlyContinue
+        ($Global:Error.Count -gt 0) | Should -Be $true
+        ($Global:Error[0].Exception.Message -like '*Identity * not found*') | Should -Be $true
+    }
 
-function Test-ShouldNotBeCaseSensitive
-{
-    Revoke-Privilege -Identity $username -Privilege SEBATCHLOGONRIGHT
-    Assert-False (Test-Privilege -Identity $username -Privilege SEBATCHLOGONRIGHT)
-    Assert-False (Test-Privilege -Identity $username -Privilege SeBatchLogonRight)
-}
+    It 'case sensitive' {
+        Revoke-CPrivilege -Identity $script:username -Privilege SEBATCHLOGONRIGHT
+        (Test-CPrivilege -Identity $script:username -Privilege SEBATCHLOGONRIGHT) | Should -Be $false
+        (Test-CPrivilege -Identity $script:username -Privilege SeBatchLogonRight) | Should -Be $false
+    }
 
-function Test-ShouldRevokeNonExistentPrivilege
-{
-    $Error.Clear()
-    Assert-False (Test-Privilege -Identity $username -Privilege SeServiceLogonRight)
-    Revoke-Privilege -Identity $username -Privilege SeServiceLogonRight
-    Assert-Equal 0 $Error.Count
-    Assert-False (Test-Privilege -Identity $username -Privilege SeServiceLogonRight)
-}
+    It 'revoke non existent privilege' {
+        $Global:Error.Clear()
+        (Test-CPrivilege -Identity $script:username -Privilege SeServiceLogonRight) | Should -Be $false
+        Revoke-CPrivilege -Identity $script:username -Privilege SeServiceLogonRight
+        $Global:Error.Count | Should -Be 0
+        (Test-CPrivilege -Identity $script:username -Privilege SeServiceLogonRight) | Should -Be $false
+    }
 
+}
