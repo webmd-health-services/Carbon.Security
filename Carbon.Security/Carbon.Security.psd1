@@ -78,9 +78,14 @@
     FunctionsToExport = @(
         'Get-CAcl',
         'Get-CPermission',
+        'Get-CPrivilege',
         'Grant-CPermission',
+        'Grant-CPrivilege',
         'Revoke-CPermission',
-        'Test-CPermission'
+        'Revoke-CPrivilege',
+        'Test-CPermission',
+        'Test-CPrivilege',
+        'Test-CPrivilegeName'
     )
 
     # Cmdlets to export from this module. By default, you get a script module, so there are no cmdlets.

@@ -24,29 +24,53 @@ AfterAll {
 
 Describe 'Revoke-CPrivilege' {
     BeforeEach {
+        $privs = Get-CPrivilege -Identity $script:username | Where-Object { $_ -ne 'SeBatchLogonRight' }
+        if ($privs)
+        {
+            Revoke-CPrivilege -Identity $script:username -Privilege $privs
+        }
+
         Grant-CPrivilege -Identity $script:username -Privilege 'SeBatchLogonRight'
-        (Test-CPrivilege -Identity $script:username -Privilege 'SeBatchLogonRight') | Should -Be $true
+        (Test-CPrivilege -Identity $script:username -Privilege 'SeBatchLogonRight') | Should -BeTrue
         $Global:Error.Clear()
     }
 
     It 'revokes privilege for non existent user' {
         Revoke-CPrivilege -Identity 'IDNOTEXIST' -Privilege SeBatchLogonRight -ErrorAction SilentlyContinue
-        ($Global:Error.Count -gt 0) | Should -Be $true
-        ($Global:Error[0].Exception.Message -like '*Identity * not found*') | Should -Be $true
+        ($Global:Error.Count -gt 0) | Should -BeTrue
+        ($Global:Error[0].Exception.Message -like '*Identity * not found*') | Should -BeTrue
     }
 
-    It 'case sensitive' {
+    It 'case insensitive' {
         Revoke-CPrivilege -Identity $script:username -Privilege SEBATCHLOGONRIGHT
-        (Test-CPrivilege -Identity $script:username -Privilege SEBATCHLOGONRIGHT) | Should -Be $false
-        (Test-CPrivilege -Identity $script:username -Privilege SeBatchLogonRight) | Should -Be $false
+        (Test-CPrivilege -Identity $script:username -Privilege SEBATCHLOGONRIGHT) | Should -BeFalse
+        $Global:Error | Should -BeNullOrEmpty
     }
 
-    It 'revoke non existent privilege' {
-        $Global:Error.Clear()
-        (Test-CPrivilege -Identity $script:username -Privilege SeServiceLogonRight) | Should -Be $false
+    It 'revokes non-existent privilege' {
         Revoke-CPrivilege -Identity $script:username -Privilege SeServiceLogonRight
-        $Global:Error.Count | Should -Be 0
-        (Test-CPrivilege -Identity $script:username -Privilege SeServiceLogonRight) | Should -Be $false
+        (Test-CPrivilege -Identity $script:username -Privilege SeServiceLogonRight) | Should -BeFalse
+        Revoke-CPrivilege -Identity $script:username -Privilege SeServiceLogonRight
+        $Global:Error | Should -BeNullOrEmpty
+        (Test-CPrivilege -Identity $script:username -Privilege SeServiceLogonRight) | Should -BeFalse
     }
 
+    It 'validates privilege names' {
+        Grant-CPrivilege -Identity $script:username -Privilege 'SeDebugPrivilege'
+        Revoke-CPrivilege -Identity $script:username `
+                          -Privilege 'SeDebugPrivilege', 'fubarsnafu', 'SeBatchLogonRight' `
+                          -ErrorAction SilentlyContinue
+        $Global:Error | Should -Match 'that privilege is unknown'
+        Test-CPrivilege -Identity $script:username 'SeDebugPrivilege' | Should -BeFalse
+        Test-CPrivilege -Identity $script:username 'fubarsnafu' | Should -BeFalse
+        Test-CPrivilege -Identity $script:username 'SeTakeOwnershipPrivilege' | Should -BeFalse
+    }
+
+    It 'rejects all invalid privileges' {
+        Revoke-CPrivilege -Identity $script:username -Privilege 'fubar', 'snafu' -ErrorAction SilentlyContinue
+        $Global:Error | Should -Match 'those privileges are unknown'
+        Test-CPrivilege -Identity $script:username 'SeBatchLogonRight' | Should -BeTrue
+        Test-CPrivilege -Identity $script:username 'fubar' | Should -BeFalse
+        Test-CPrivilege -Identity $script:username 'snafu' | Should -BeFalse
+    }
 }

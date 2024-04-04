@@ -3,47 +3,62 @@ function Get-CPrivilege
 {
     <#
     .SYNOPSIS
-    Gets an identity's privileges.
-    
+    Gets an account's rights and privileges.
+
     .DESCRIPTION
-    These privileges are usually managed by Group Policy and control the system operations and types of logons a user/group can perform.
-    
+    The `Get-CPrivilege` function gets an account's rights and privileges. These privileges are usually managed by Group
+    Policy and control the system operations and types of logons an account can perform.
+
     Note: if a computer is not on a domain, this function won't work.
-    
+
     .OUTPUTS
     System.String
-    
-    .LINK
-    Carbon_Privilege
 
     .LINK
     Grant-CPrivilege
-    
+
     .LINK
-    Revoke-Prvileges
-    
+    Revoke-CPrivilege
+
     .LINK
     Test-CPrivilege
-    
+
+    .LINK
+    Test-CPrivilegeName
+
     .EXAMPLE
     Get-CPrivilege -Identity TheBeast
-    
-    Gets `TheBeast`'s privileges as an array of strings.
+
+    Gets `TheBeast` account's privileges as an array of strings.
     #>
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)]
-        [string]
-        # The identity whose privileges to return.
-        $Identity
+        # The user/group name whose privileges to return.
+        [Parameter(Mandatory)]
+        [String] $Identity
     )
-    
-    Set-StrictMode -Version 'Latest'
 
+    Set-StrictMode -Version 'Latest'
     Use-CallerPreference -Cmdlet $PSCmdlet -Session $ExecutionContext.SessionState
 
-    [Carbon.Security.Privilege]::GetPrivileges( $Identity )
+    $account = Resolve-CIdentity -Name $Identity
+    if (-not $account)
+    {
+        return
+    }
+
+    $pHandle = Invoke-AdvApiLsaOpenPolicy -DesiredAccess LookupNames
+    if (-not $pHandle)
+    {
+        return
+    }
+
+    try
+    {
+        Invoke-AdvApiLsaEnumerateAccountRights -PolicyHandle $pHandle -Sid $account.Sid | Write-Output
+    }
+    finally
+    {
+        Invoke-AdvApiLsaClose -PolicyHandle $pHandle | Out-Null
+    }
 }
-
-Set-Alias -Name 'Get-Privileges' -Value 'Get-CPrivilege'
-

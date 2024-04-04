@@ -3,15 +3,22 @@ function Revoke-CPrivilege
 {
     <#
     .SYNOPSIS
-    Revokes an identity's privileges to perform system operations and certain types of logons.
+    Removes an account's rights and/or privileges.
 
     .DESCRIPTION
-    Valid privileges are documented on Microsoft's website: [Privilege Constants](http://msdn.microsoft.com/en-us/library/windows/desktop/bb530716.aspx) and [Account Right Constants](http://msdn.microsoft.com/en-us/library/windows/desktop/bb545671.aspx). Known values as of August 2014 are:
+    The `Revoke-CPrivilege` function removes a user or group's rights and/or privileges. Pass the user/group name to the
+    `Identity` parameter. Pass the right/privilege names to remove to the `Privilege` parameter. Any right/privilege the
+    user/group has is removed. If the user doesn't have the right/privilege, nothing happens.
+
+    To see the user/group's current rights/privileges, use the `Get-CPrivilege` function.
+
+    Rights and privilege names are documented on Microsoft's website, duplicated below. These lists may be out-of-date.
+
+    [Privilege Constants](https://learn.microsoft.com/en-us/windows/win32/secauthz/privilege-constants):
 
      * SeAssignPrimaryTokenPrivilege
      * SeAuditPrivilege
      * SeBackupPrivilege
-     * SeBatchLogonRight
      * SeChangeNotifyPrivilege
      * SeCreateGlobalPrivilege
      * SeCreatePagefilePrivilege
@@ -19,29 +26,22 @@ function Revoke-CPrivilege
      * SeCreateSymbolicLinkPrivilege
      * SeCreateTokenPrivilege
      * SeDebugPrivilege
-     * SeDenyBatchLogonRight
-     * SeDenyInteractiveLogonRight
-     * SeDenyNetworkLogonRight
-     * SeDenyRemoteInteractiveLogonRight
-     * SeDenyServiceLogonRight
+     * SeDelegateSessionUserImpersonatePrivilege
      * SeEnableDelegationPrivilege
      * SeImpersonatePrivilege
      * SeIncreaseBasePriorityPrivilege
      * SeIncreaseQuotaPrivilege
      * SeIncreaseWorkingSetPrivilege
-     * SeInteractiveLogonRight
      * SeLoadDriverPrivilege
      * SeLockMemoryPrivilege
      * SeMachineAccountPrivilege
      * SeManageVolumePrivilege
-     * SeNetworkLogonRight
      * SeProfileSingleProcessPrivilege
      * SeRelabelPrivilege
      * SeRemoteInteractiveLogonRight
      * SeRemoteShutdownPrivilege
      * SeRestorePrivilege
      * SeSecurityPrivilege
-     * SeServiceLogonRight
      * SeShutdownPrivilege
      * SeSyncAgentPrivilege
      * SeSystemEnvironmentPrivilege
@@ -54,8 +54,17 @@ function Revoke-CPrivilege
      * SeUndockPrivilege
      * SeUnsolicitedInputPrivilege
 
-    .LINK
-    Carbon_Privilege
+    [Account Right Constants](https://learn.microsoft.com/en-us/windows/win32/secauthz/account-rights-constants):
+
+     * SeBatchLogonRight
+     * SeDenyBatchLogonRight
+     * SeDenyInteractiveLogonRight
+     * SeDenyNetworkLogonRight
+     * SeDenyRemoteInteractiveLogonRight
+     * SeDenyServiceLogonRight
+     * SeInteractiveLogonRight
+     * SeNetworkLogonRight
+     * SeServiceLogonRight
 
     .LINK
     Get-CPrivilege
@@ -67,10 +76,13 @@ function Revoke-CPrivilege
     Test-CPrivilege
 
     .LINK
-    http://msdn.microsoft.com/en-us/library/windows/desktop/bb530716.aspx
+    Test-CPrivilegeName
 
     .LINK
-    http://msdn.microsoft.com/en-us/library/windows/desktop/bb545671.aspx
+    https://learn.microsoft.com/en-us/windows/win32/secauthz/privilege-constants
+
+    .LINK
+    https://learn.microsoft.com/en-us/windows/win32/secauthz/account-rights-constants
 
     .EXAMPLE
     Revoke-CPrivilege -Identity Batcomputer -Privilege SeServiceLogonRight
@@ -79,49 +91,75 @@ function Revoke-CPrivilege
     #>
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)]
-        [string]
         # The identity to grant a privilege.
-        $Identity,
+        [Parameter(Mandatory)]
+        [String] $Identity,
 
-        [Parameter(Mandatory=$true)]
-        [string[]]
-        # The privileges to revoke.
-        $Privilege
+        # The rights/privileges to grant.
+        #
+        # [Privilege names are documented on the "Privilege Constants"
+        # page.](https://learn.microsoft.com/en-us/windows/win32/secauthz/privilege-constants)
+        #
+        # [Rights names are documented on the "Account Rights Constants"
+        # page.](https://learn.microsoft.com/en-us/windows/win32/secauthz/account-rights-constants)
+        [Parameter(Mandatory)]
+        [String[]] $Privilege
     )
 
     Set-StrictMode -Version 'Latest'
-
     Use-CallerPreference -Cmdlet $PSCmdlet -Session $ExecutionContext.SessionState
 
-    $account = Resolve-CIdentity -Name $Identity -NoWarn
+    $account = Resolve-CIdentity -Name $Identity
     if( -not $account )
     {
         return
     }
 
-    # Convert the privileges from the user into their canonical names.
-    $cPrivileges = Get-CPrivilege -Identity $account.FullName |
-                        Where-Object { $Privilege -contains $_ }
-    if( -not $cPrivileges )
+    $unknownPrivileges = $Privilege | Where-Object { -not (Test-CPrivilegeName -Name $_) }
+    if ($unknownPrivileges)
+    {
+        $privileges = 'privilege'
+        $thatThose = 'that'
+        $isAre = 'is'
+        if (($unknownPrivileges | Measure-Object).Count -gt 1)
+        {
+            $privileges = 'privileges'
+            $thatThose = 'those'
+            $isAre = 'are'
+        }
+        $msg = "Failed to revoke the $($account.FullName) account's $($unknownPrivileges -join ', ') ${privileges} " +
+               "because ${thatThose} ${privileges} ${isAre} unknown."
+        Write-Error -Message $msg -ErrorAction $ErrorActionPreference
+    }
+
+    $privilegesToRevoke = $Privilege | Where-Object { (Test-CPrivilege -Identity $account.FullName -Privilege $_) }
+    if (-not $privilegesToRevoke)
+    {
+        return
+    }
+
+    # Privilege names are case-sensitive when granting, so get the actual value of the privilege names.
+    $privilegesToRevoke = $privilegesToRevoke | Test-CPrivilegeName -PassThru | Where-Object { $_ }
+    if (-not $privilegesToRevoke)
+    {
+        return
+    }
+
+    $pHandle = Invoke-AdvApiLsaOpenPolicy -DesiredAccess CreateAccount,LookupNames
+    if (-not $pHandle)
     {
         return
     }
 
     try
     {
-        [Carbon.Security.Privilege]::RevokePrivileges($account.FullName,$cPrivileges)
+        Write-Information "$($account.FullName)  - $($privilegesToRevoke -join ',')"
+        Invoke-AdvApiLsaRemoveAccountRights -PolicyHandle $pHandle -Sid $account.Sid -Privilege $privilegesToRevoke |
+            Out-Null
     }
-    catch
+    finally
     {
-        Write-Error -Message ('Failed to revoke {0}''s {1} privilege(s).' -f $account.FullName,($cPrivileges -join ', '))
-
-        $ex = $_.Exception
-        while( $ex.InnerException )
-        {
-            $ex = $ex.InnerException
-            Write-Error -Exception $ex
-        }
+        Invoke-AdvApiLsaClose -PolicyHandle $pHandle | Out-Null
     }
 }
 

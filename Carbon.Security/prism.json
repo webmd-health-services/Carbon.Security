@@ -2,10 +2,14 @@
 	"PSModules": [
     {
       "Name": "Carbon.Accounts",
-      "Version": "1-*"
+      "Version": "1.*-*"
     },
     {
       "Name": "Carbon.Core",
+      "Version": "1.*-*"
+    },
+    {
+      "Name": "PureInvoke",
       "Version": "1.*-*"
     }
 	],

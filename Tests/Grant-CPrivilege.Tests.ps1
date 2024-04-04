@@ -28,7 +28,6 @@ AfterAll {
 }
 
 Describe 'Grant-CPrivilege' {
-
     BeforeEach {
         $script:testDirPath = Join-Path -Path $TestDrive -ChildPath ($script:testNum++)
         New-Item -Path $script:testDirPath -ItemType 'Directory'
@@ -36,6 +35,11 @@ Describe 'Grant-CPrivilege' {
                   -Destination $script:testDirPath
         $servicePath = Join-Path -Path $script:testDirPath -ChildPath 'NoOpService.exe' -Resolve
         Install-CService -Name $script:serviceName -Path $servicePath -StartupType Manual -Credential $script:credential
+        $privs = Get-CPrivilege -Identity $script:username
+        if ($privs)
+        {
+            Revoke-CPrivilege -Identity $script:username -Privilege $privs
+        }
         $Global:Error.Clear()
     }
 
@@ -44,7 +48,6 @@ Describe 'Grant-CPrivilege' {
     }
 
     It 'grants and revoke privileges' {
-        Revoke-CPrivilege -Identity $script:username -Privilege SeServiceLogonRight
         (Test-CPrivilege -Identity $script:username -Privilege SeServiceLogonRight) | Should -BeFalse
         (Get-CPrivilege -Identity $script:username | Where-Object { $_ -eq 'SeServiceLogonRight' }) |
             Should -BeNullOrEmpty
@@ -71,10 +74,26 @@ Describe 'Grant-CPrivilege' {
         ($Global:Error[0].Exception.Message -like '*Identity * not found*') | Should -BeTrue
     }
 
-    It 'grants case sensitive permission' {
-        Grant-CPrivilege -Identity $script:username -Privilege SESERVICELOGONRIGHT -ErrorAction SilentlyContinue
-        $Global:Error.Count | Should -BeGreaterThan 1
-        $Global:Error[0].Exception.Message | Should -BeLike '*case-sensitive*'
+    It 'treats privilege name case-insensitively' {
+        Grant-CPrivilege -Identity $script:username -Privilege SESERVICELOGONRIGHT
+        $Global:Error | Should -BeNullOrEmpty
+        Test-CPrivilege -Identity $script:username -Privilege SESERVICELOGONRIGHT | Should -BeTrue
     }
 
+    It 'validates privilege names' {
+        Grant-CPrivilege -Identity $script:username `
+                         -Privilege 'SeDebugPrivilege', 'fubarsnafu', 'SeTakeOwnershipPrivilege' `
+                         -ErrorAction SilentlyContinue
+        $Global:Error | Should -Match 'that privilege is unknown'
+        Test-CPrivilege -Identity $script:username 'SeDebugPrivilege' | Should -BeTrue
+        Test-CPrivilege -Identity $script:username 'fubarsnafu' | Should -BeFalse
+        Test-CPrivilege -Identity $script:username 'SeTakeOwnershipPrivilege' | Should -BeTrue
+    }
+
+    It 'rejects all invalid privileges' {
+        Grant-CPrivilege -Identity $script:username -Privilege 'fubar', 'snafu' -ErrorAction SilentlyContinue
+        $Global:Error | Should -Match 'those privileges are unknown'
+        Test-CPrivilege -Identity $script:username 'fubar' | Should -BeFalse
+        Test-CPrivilege -Identity $script:username 'snafu' | Should -BeFalse
+    }
 }
