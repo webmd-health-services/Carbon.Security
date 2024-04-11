@@ -9,8 +9,6 @@ function Get-CPrivilege
     The `Get-CPrivilege` function gets an account's rights and privileges. These privileges are usually managed by Group
     Policy and control the system operations and types of logons an account can perform.
 
-    Note: if a computer is not on a domain, this function won't work.
-
     .OUTPUTS
     System.String
 
@@ -32,6 +30,7 @@ function Get-CPrivilege
     Gets `TheBeast` account's privileges as an array of strings.
     #>
     [CmdletBinding()]
+    [OutputType([String])]
     param(
         # The user/group name whose privileges to return.
         [Parameter(Mandatory)]
