@@ -29,6 +29,7 @@ functions were migrated to the following provider-specific modules with the foll
 * `Resolve-CPrivateKeyPath`
 * `Revoke-CPrivateKeyPermission`
 * `Test-CPrivateKeyPath`
+* `Test-CPrivateKeyPermission`
 
 ### Added
 
