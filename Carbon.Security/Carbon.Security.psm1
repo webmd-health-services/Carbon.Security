@@ -41,7 +41,8 @@ Import-Module -Name (Join-Path -Path $psModulesRoot -ChildPath 'PureInvoke' -Res
                     'Invoke-AdvApiLsaEnumerateAccountRights',
                     'Invoke-AdvApiLsaOpenPolicy',
                     'Invoke-AdvApiLsaRemoveAccountRights'
-              )
+              ) `
+              -Verbose:$false
 
 if (-not (Test-Path -Path 'variable:IsWindows'))
 {
