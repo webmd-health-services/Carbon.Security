@@ -30,7 +30,18 @@ Import-Module -Name (Join-Path -Path $psModulesRoot -ChildPath 'Carbon.Core') `
               -Function @('Get-CPathProvider') `
               -Verbose:$false
 Import-Module -Name (Join-Path -Path $psModulesRoot -ChildPath 'Carbon.Accounts') `
-              -Function @('Resolve-CIdentityName', 'Test-CIdentity') `
+              -Function @('Resolve-CIdentity', 'Resolve-CIdentityName', 'Test-CIdentity') `
+              -Verbose:$false
+Import-Module -Name (Join-Path -Path $psModulesRoot -ChildPath 'PureInvoke' -Resolve) `
+              -Function @(
+                    'Invoke-AdvApiLookupPrivilegeName'
+                    'Invoke-AdvApiLookupPrivilegeValue',
+                    'Invoke-AdvApiLsaAddAccountRights',
+                    'Invoke-AdvApiLsaClose',
+                    'Invoke-AdvApiLsaEnumerateAccountRights',
+                    'Invoke-AdvApiLsaOpenPolicy',
+                    'Invoke-AdvApiLsaRemoveAccountRights'
+              ) `
               -Verbose:$false
 
 if (-not (Test-Path -Path 'variable:IsWindows'))
