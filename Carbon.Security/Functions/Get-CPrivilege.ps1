@@ -40,7 +40,7 @@ function Get-CPrivilege
     Set-StrictMode -Version 'Latest'
     Use-CallerPreference -Cmdlet $PSCmdlet -Session $ExecutionContext.SessionState
 
-    $account = Resolve-CIdentity -Name $Identity
+    $account = Resolve-CPrincipal -Name $Identity
     if (-not $account)
     {
         return

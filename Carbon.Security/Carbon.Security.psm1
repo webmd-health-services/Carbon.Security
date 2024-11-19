@@ -30,7 +30,7 @@ Import-Module -Name (Join-Path -Path $psModulesDirPath -ChildPath 'Carbon.Core')
               -Function @('Get-CPathProvider') `
               -Verbose:$false
 Import-Module -Name (Join-Path -Path $psModulesDirPath -ChildPath 'Carbon.Accounts') `
-              -Function @('Resolve-CIdentity', 'Resolve-CIdentityName', 'Test-CIdentity') `
+              -Function @('Resolve-CPrincipal', 'Resolve-CPrincipalName', 'Test-CPrincipal') `
               -Verbose:$false
 Import-Module -Name (Join-Path -Path $psModulesDirPath -ChildPath 'PureInvoke' -Resolve) `
               -Function @(

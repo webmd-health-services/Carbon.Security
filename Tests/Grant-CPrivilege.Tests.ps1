@@ -68,10 +68,10 @@ Describe 'Grant-CPrivilege' {
         $Global:Error | Should -BeNullOrEmpty
     }
 
-    It 'writes an error if identity not found' {
+    It 'writes an error if principal not found' {
         Grant-CPrivilege -Identity 'IDNOTEXIST' -Privilege SeBatchLogonRight -ErrorAction SilentlyContinue
         ($Global:Error.Count -gt 0) | Should -BeTrue
-        ($Global:Error[0].Exception.Message -like '*Identity * not found*') | Should -BeTrue
+        ($Global:Error[0].Exception.Message -like '*Principal * not found*') | Should -BeTrue
     }
 
     It 'treats privilege name case-insensitively' {

@@ -35,10 +35,10 @@ Describe 'Revoke-CPrivilege' {
         $Global:Error.Clear()
     }
 
-    It 'revokes privilege for non existent user' {
+    It 'revokes privilege for non existent principal' {
         Revoke-CPrivilege -Identity 'IDNOTEXIST' -Privilege SeBatchLogonRight -ErrorAction SilentlyContinue
         ($Global:Error.Count -gt 0) | Should -BeTrue
-        ($Global:Error[0].Exception.Message -like '*Identity * not found*') | Should -BeTrue
+        ($Global:Error[0].Exception.Message -like '*Principal * not found*') | Should -BeTrue
     }
 
     It 'case insensitive' {

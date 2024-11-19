@@ -40,7 +40,7 @@ function Resolve-Arg
     $accountMsg = ''
     if ($Identity)
     {
-        if (-not (Test-CIdentity -Name $Identity))
+        if (-not (Test-CPrincipal -Name $Identity))
         {
             $msg = "Failed to ${Action}${permsMsg} on path ""${Path}"" to account ""${Identity}"" because that " +
                    'account does not exist.'
@@ -48,7 +48,7 @@ function Resolve-Arg
             return
         }
 
-        $accountName = $result.AccountName = Resolve-CIdentityName -Name $Identity
+        $accountName = $result.AccountName = Resolve-CPrincipalName -Name $Identity
         $accountMsg = " account ""${accountName}"""
 
         if ($Permission)
