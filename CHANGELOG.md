@@ -1,6 +1,12 @@
 # Carbon.Security Changelog
 
+## 1.0.2
+
+Decreasing depth of nested dependencies. Missed one.
+
 ## 1.0.1
+
+> Released 18 Nov 2024
 
 Decreasing depth of nested dependencies.
 
