@@ -1,8 +1,9 @@
 /.output
-/PSModules
+/Carbon.Security/Carbon.*
+/Carbon.Security/PureInvoke
 /.vscode
 /Carbon.Security/CHANGELOG.md
 /Carbon.Security/LICENSE.txt
 /Carbon.Security/NOTICE.txt
 /Carbon.Security/README.md
-/Carbon.Security/Modules/
+/PSModules

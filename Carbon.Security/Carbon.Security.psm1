@@ -23,16 +23,16 @@ Set-StrictMode -Version 'Latest'
 # Functions should use $moduleRoot as the relative root from which to find
 # things. A published module has its function appended to this file, while a
 # module in development has its functions in the Functions directory.
-$moduleRoot = $PSScriptRoot
+$script:moduleRoot = $PSScriptRoot
 
-$psModulesRoot = Join-Path -Path $PSScriptRoot -ChildPath 'Modules' -Resolve
-Import-Module -Name (Join-Path -Path $psModulesRoot -ChildPath 'Carbon.Core') `
+$psModulesDirPath = $script:moduleRoot
+Import-Module -Name (Join-Path -Path $psModulesDirPath -ChildPath 'Carbon.Core') `
               -Function @('Get-CPathProvider') `
               -Verbose:$false
-Import-Module -Name (Join-Path -Path $psModulesRoot -ChildPath 'Carbon.Accounts') `
+Import-Module -Name (Join-Path -Path $psModulesDirPath -ChildPath 'Carbon.Accounts') `
               -Function @('Resolve-CIdentity', 'Resolve-CIdentityName', 'Test-CIdentity') `
               -Verbose:$false
-Import-Module -Name (Join-Path -Path $psModulesRoot -ChildPath 'PureInvoke' -Resolve) `
+Import-Module -Name (Join-Path -Path $psModulesDirPath -ChildPath 'PureInvoke' -Resolve) `
               -Function @(
                     'Invoke-AdvApiLookupPrivilegeName'
                     'Invoke-AdvApiLookupPrivilegeValue',
@@ -59,7 +59,7 @@ if (-not (Test-Path -Path 'variable:IsWindows'))
 # this file, so only dot-source files that exist on the file system. This allows
 # developers to work on a module without having to build it first. Grab all the
 # functions that are in their own files.
-$functionsPath = Join-Path -Path $moduleRoot -ChildPath 'Functions\*.ps1'
+$functionsPath = Join-Path -Path $script:moduleRoot -ChildPath 'Functions\*.ps1'
 if( (Test-Path -Path $functionsPath) )
 {
     foreach( $functionPath in (Get-Item $functionsPath) )
