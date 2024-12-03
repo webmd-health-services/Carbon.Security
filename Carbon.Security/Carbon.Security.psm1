@@ -25,7 +25,7 @@ Set-StrictMode -Version 'Latest'
 # module in development has its functions in the Functions directory.
 $script:moduleRoot = $PSScriptRoot
 
-$psModulesDirPath = $script:moduleRoot
+$psModulesDirPath = Join-Path -Path $script:moduleRoot -ChildPath 'Modules' -Resolve
 Import-Module -Name (Join-Path -Path $psModulesDirPath -ChildPath 'Carbon.Core') `
               -Function @('Get-CPathProvider') `
               -Verbose:$false

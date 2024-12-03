@@ -9,7 +9,7 @@ BeforeAll {
 
     & (Join-Path -Path $PSScriptRoot -ChildPath 'Initialize-Test.ps1' -Resolve)
 
-    $psModulesSharedPath = Join-Path -Path $PSScriptRoot -ChildPath '..\Carbon.Security' -Resolve
+    $psModulesSharedPath = Join-Path -Path $PSScriptRoot -ChildPath '..\Carbon.Security\Modules' -Resolve
     Import-Module -Name (Join-Path -Path $psModulesSharedPath -ChildPath 'Carbon.Core' -Resolve) `
                   -Function ('Get-CPathProvider') `
                   -Global `
