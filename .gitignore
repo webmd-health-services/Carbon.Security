@@ -1,7 +1,6 @@
 /.output
-/Carbon.Security/Carbon.*
-/Carbon.Security/PureInvoke
 /.vscode
+/Carbon.Security/Modules/
 /Carbon.Security/CHANGELOG.md
 /Carbon.Security/LICENSE.txt
 /Carbon.Security/NOTICE.txt

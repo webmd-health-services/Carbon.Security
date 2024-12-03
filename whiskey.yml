@@ -2,12 +2,11 @@
 Build:
 - PowerShell:
     ExceptDuring: Clean
-    ScriptBlock: prism install | Format-Table -Auto
+    ScriptBlock: |
+        prism install | Format-Table -Auto
+        prism install -Path .\Carbon.Security | Format-Table -Auto
 
-- PowerShell:
-    ExceptDuring: Clean
-    WorkingDirectory: Carbon.Security
-    ScriptBlock: prism install | Format-Table -Auto
+        Get-Module | Format-Table
 
 - Version:
     Path: Carbon.Security\Carbon.Security.psd1

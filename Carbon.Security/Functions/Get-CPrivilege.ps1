@@ -7,7 +7,17 @@ function Get-CPrivilege
 
     .DESCRIPTION
     The `Get-CPrivilege` function gets an account's rights and privileges. These privileges are usually managed by Group
-    Policy and control the system operations and types of logons an account can perform.
+    Policy and control the system operations and types of logons an account can perform. Only privileges directly
+    granted to the account are returned. If an account is granted a privilege through a group, those privileges are
+    *not* returned.
+
+    [Windows privileges can be in one of three states:](https://superuser.com/a/1254265/45274)
+
+    * not granted
+    * granted and enabled
+    * granted and disabled
+
+    The `Get-CPrivilege` function returns granted privileges, regardless if they are enabled or disabled.
 
     .OUTPUTS
     System.String
