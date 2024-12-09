@@ -1,6 +1,12 @@
 # Carbon.Security Changelog
 
+## 1.0.4
+
+Removing extra nested module scope.
+
 ## 1.0.3
+
+> Released 3 Dec 2024
 
 Change to the layout of internal nested dependencies.
 

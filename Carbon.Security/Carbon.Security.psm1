@@ -26,13 +26,13 @@ Set-StrictMode -Version 'Latest'
 $script:moduleRoot = $PSScriptRoot
 
 $psModulesDirPath = Join-Path -Path $script:moduleRoot -ChildPath 'Modules' -Resolve
-Import-Module -Name (Join-Path -Path $psModulesDirPath -ChildPath 'Carbon.Core') `
+Import-Module -Name (Join-Path -Path $psModulesDirPath -ChildPath 'Carbon.Core\Carbon.Core.psm1') `
               -Function @('Get-CPathProvider') `
               -Verbose:$false
-Import-Module -Name (Join-Path -Path $psModulesDirPath -ChildPath 'Carbon.Accounts') `
+Import-Module -Name (Join-Path -Path $psModulesDirPath -ChildPath 'Carbon.Accounts\Carbon.Accounts.psm1') `
               -Function @('Resolve-CPrincipal', 'Resolve-CPrincipalName', 'Test-CPrincipal') `
               -Verbose:$false
-Import-Module -Name (Join-Path -Path $psModulesDirPath -ChildPath 'PureInvoke' -Resolve) `
+Import-Module -Name (Join-Path -Path $psModulesDirPath -ChildPath 'PureInvoke\PureInvoke.psm1' -Resolve) `
               -Function @(
                     'Invoke-AdvApiLookupPrivilegeName'
                     'Invoke-AdvApiLookupPrivilegeValue',
