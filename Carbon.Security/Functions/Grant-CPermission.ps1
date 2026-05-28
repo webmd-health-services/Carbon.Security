@@ -2,7 +2,7 @@
 {
     <#
     .SYNOPSIS
-    Grants permissions on a file, directory, or registry key.
+    Grants permissions on a file, directory, or registry keys.
 
     .DESCRIPTION
     The `Grant-CPermission` function grants permissions to files, directories, or registry keys. Using this function and
@@ -196,7 +196,8 @@
         # passed to Set-Acl, this causes intermittent errors.  So, we just grab the ACL portion of the security
         # descriptor. See
         # http://www.bilalaslam.com/2010/12/14/powershell-workaround-for-the-security-identifier-is-not-allowed-to-be-the-owner-of-this-object-with-set-acl/
-        $currentAcl = Get-Item -LiteralPath $currentPath -Force | Get-CAcl -IncludeSection ([AccessControlSections]::Access)
+        $currentItem = Get-Item -LiteralPath $currentPath -Force
+        $acl = $currentItem | Get-CAcl -IncludeSection ([AccessControlSections]::Access)
 
         $testPermsFlagsArgs = @{ }
         if (Test-Path -LiteralPath $currentPath -PathType Container)
@@ -225,7 +226,7 @@
         if( $Clear )
         {
             $rulesToRemove =
-                $currentAcl.Access |
+                $acl.Access |
                 Where-Object { $_.IdentityReference.Value -ne $accountName } |
                 # Don't remove Administrators access.
                 Where-Object { $_.IdentityReference.Value -ne 'BUILTIN\Administrators' } |
@@ -235,14 +236,14 @@
             {
                 foreach( $ruleToRemove in $rulesToRemove )
                 {
+                    $rmIdentity = $ruleToRemove.IdentityReference
                     $rmType = $ruleToRemove.AccessControlType.ToString().ToLowerInvariant()
                     $rmRights = $ruleToRemove."${providerName}Rights"
-                    Write-Information "${Description}  ${Identity}  - ${rmType} ${rmRights}"
-                    [void]$currentAcl.RemoveAccessRule( $ruleToRemove )
+                    Write-Information "${Description}  ${rmIdentity}  - ${rmType} ${rmRights}"
+                    [void]$acl.RemoveAccessRule( $ruleToRemove )
                 }
             }
         }
-
 
         $accessRule =
             New-Object -TypeName "Security.AccessControl.${providerName}AccessRule" `
@@ -260,11 +261,11 @@
         {
             if( $Append )
             {
-                $currentAcl.AddAccessRule( $accessRule )
+                $acl.AddAccessRule( $accessRule )
             }
             else
             {
-                $currentAcl.SetAccessRule( $accessRule )
+                $acl.SetAccessRule( $accessRule )
             }
         }
 
@@ -295,7 +296,8 @@
                 }
                 Write-Information "${Description}  ${newIdentity}  + ${newType} ${newRights}"
             }
-            Set-Acl -Path $currentPath -AclObject $currentAcl
+
+            $currentItem | Set-CAcl -AclObject $acl
         }
 
         if( $PassThru )

@@ -82,8 +82,8 @@ function Revoke-CPermission
         # When passed to Set-Acl, this causes intermittent errors.  So, we just grab the ACL portion of the security
         # descriptor. See
         # http://www.bilalaslam.com/2010/12/14/powershell-workaround-for-the-security-identifier-is-not-allowed-to-be-the-owner-of-this-object-with-set-acl/
-        $currentAcl =
-            Get-Item -LiteralPath $currentPath -Force | Get-CAcl -IncludeSection ([AccessControlSections]::Access)
+        $currentItem = Get-Item -LiteralPath $currentPath -Force
+        $acl = $currentItem | Get-CAcl -IncludeSection ([AccessControlSections]::Access)
 
         foreach ($ruleToRemove in $rulesToRemove)
         {
@@ -91,13 +91,15 @@ function Revoke-CPermission
             $rmType = $ruleToRemove.AccessControlType.ToString().ToLowerInvariant()
             $rmRights = $ruleToRemove."${providerName}Rights"
             Write-Information "${Description}  ${rmIdentity}  - ${rmType} ${rmRights}"
-            [void]$currentAcl.RemoveAccessRule($ruleToRemove)
+            [void]$acl.RemoveAccessRule($ruleToRemove)
         }
 
-        if ($PSCmdlet.ShouldProcess($currentPath, "revoke ""${accountName}"" account's permissions"))
+        if (-not $PSCmdlet.ShouldProcess($currentPath, "revoke ""${accountName}"" account's permissions"))
         {
-            Set-Acl -Path $currentPath -AclObject $currentAcl
+            continue
         }
+
+        $currentItem | Set-CAcl -AclObject $acl
     }
 }
 
