@@ -1,4 +1,6 @@
 
+using namespace System.Security.AccessControl
+
 #Requires -Version 5.1
 Set-StrictMode -Version 'Latest'
 
@@ -6,6 +8,11 @@ BeforeAll {
     Set-StrictMode -Version 'Latest'
 
     & (Join-Path -Path $PSScriptRoot -ChildPath 'Initialize-Test.ps1' -Resolve)
+
+    Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath '..\PSModules\Carbon' -Resolve) `
+                  -Function ('Disable-CAclInheritance') `
+                  -Prefix 'T' `
+                  -Verbose:$false
 
     $script:testDirPath = ''
     $script:testNum = 0
@@ -92,6 +99,24 @@ Describe 'Revoke-CPermission' {
         finally
         {
             Remove-Item $regKey
+        }
+    }
+
+    Context 'ACL inheritance disabled' {
+        # When replacing the current user's permissions on an item that doesn't inherit ACL permissions, the Set-Acl
+        # cmdlet fails with "The process does not possess the 'SeSecurityPrivilege' privilege which is required for this
+        # operation." error.
+        It 'removes current user''s permissions' {
+            $user = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+
+            $filePath = Join-Path -Path $script:testDirPath -ChildPath 'file'
+            New-Item -Path $filePath -ItemType 'File' | Out-Null
+            Disable-TCAclInheritance -Path $filePath
+
+            Grant-CPermission -Path $filePath -Identity $user -Permission 'Modify'
+            Revoke-CPermission -Path $filePath -Identity $user
+            Get-CPermission -Path $filePath -Identity $user | Should -BeNullOrEmpty
+            $Global:Error | Should -BeNullOrEmpty
         }
     }
 }

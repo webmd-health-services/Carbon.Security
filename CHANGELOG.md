@@ -1,6 +1,16 @@
 # Carbon.Security Changelog
 
+## 1.0.5
+
+* Fixed: `Grant-CPermission` uses wrong identity name in information message when removing a permission.
+* Fixed: `Grant-CPermission` fails when replacing the current user's permissions on a file or directory and ACL
+  inheritance is disabled.
+* Fixed: `Revoke-CPermission` fails when removing the current user's permissions on a file or directory and ACL
+  inheritance is disabled.
+
 ## 1.0.4
+
+> Released 10 Dec 2024
 
 Removing extra nested module scope.
 

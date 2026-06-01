@@ -18,6 +18,10 @@ BeforeAll {
                   -Function ('Resolve-CPrincipalName') `
                   -Global `
                   -Verbose:$false
+    Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath '..\PSModules\Carbon' -Resolve) `
+                  -Function ('Disable-CAclInheritance') `
+                  -Prefix 'T' `
+                  -Verbose:$false
 
     $script:testDirPath = $null
     $script:testNum = 0
@@ -119,8 +123,8 @@ BeforeAll {
 
         if( $Registry )
         {
-            $regContainerPath = 'hkcu:\CarbonTestGrantPermission{0}' -f ([IO.Path]::GetRandomFileName())
-            $key = New-Item -Path $regContainerPath
+            $regContainerPath = 'hkcu:\Software\Carbon.Security\{0}' -f ([IO.Path]::GetRandomFileName())
+            New-Item -Path $regContainerPath -Force | Out-Null
             return $regContainerPath
         }
     }
@@ -415,7 +419,7 @@ Describe 'Grant-CPermission' {
                        -HasInheritanceFlags [InheritanceFlags]::ObjectInherit `
                        -HasPropagationFlags [PropagationFlags]::NoPropagateInherit
 
-        Mock -CommandName 'Set-Acl' -Verifiable -ModuleName 'Carbon.Security'
+        Mock -CommandName 'Set-CAcl' -Verifiable -ModuleName 'Carbon.Security'
 
         Grant-CPermission -Identity $script:user `
                           -Permission FullControl `
@@ -423,7 +427,7 @@ Describe 'Grant-CPermission' {
                           -ApplyTo ContainerAndLeaves `
                           -Force
 
-        Should -Invoke 'Set-Acl' -Times 1 -Exactly -ModuleName 'Carbon.Security'
+        Should -Invoke 'Set-CAcl' -Times 1 -Exactly -ModuleName 'Carbon.Security'
     }
 
     It 'when an item is hidden' {
@@ -502,5 +506,22 @@ Describe 'Grant-CPermission' {
                           -Append
         $perm = Get-CPermission -Path $dirPath -Identity $script:user
         $perm | Should -HaveCount 2
+    }
+
+    Context 'ACL inheritance disabled' {
+        # When replacing a user's permissions on an item that doesn't inherit ACL permissions, the Set-Acl cmdlet fails
+        # with "The process does not possess the 'SeSecurityPrivilege' privilege which is required for this operation."
+        # error.
+        It 'replaces current user''s permissions' {
+            $user = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+
+            $filePath = New-TestFile
+            Disable-TCAclInheritance -Path $filePath
+
+            Grant-CPermission -Path $filePath -Identity $user -Permission 'Modify'
+            Grant-CPermission -Path $filePath -Identity $user -Permission 'FullControl'
+            ThenPermission -On $filePath -For $user -Is ([FileSystemRights]::FullControl)
+            $Global:Error | Should -BeNullOrEmpty
+        }
     }
 }
